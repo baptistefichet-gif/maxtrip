@@ -98,6 +98,32 @@ async function main() {
     liveApp.stations = { error: error instanceof Error ? error.message : String(error) };
   }
 
+  async function probeLiveApi(label, params) {
+    const appUrl = new URL(liveApp.base + "/api/trains");
+    for (const [key, value] of Object.entries(params)) appUrl.searchParams.set(key, value);
+    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" } });
+    const body = await response.text();
+    let data = null;
+    try { data = JSON.parse(body); } catch {}
+    return {
+      label,
+      request: appUrl.toString(),
+      status: response.status,
+      total_count: data?.total_count ?? null,
+      returned_count: Array.isArray(data?.results) ? data.results.length : null,
+      query_info: data?.query_info ?? null,
+      error: data?.error ?? (response.ok ? null : body.slice(0, 250))
+    };
+  }
+
+  try {
+    liveApp.routeOriginOnly = await probeLiveApi("origin only", { origine: "PARIS (intramuros)", limit: "2" });
+    liveApp.routeDateOnly = await probeLiveApi("date only", { date: TARGET_DATE, limit: "2" });
+    liveApp.routeOriginDate = await probeLiveApi("origin + date", { origine: "PARIS (intramuros)", date: TARGET_DATE, limit: "2" });
+  } catch (error) {
+    liveApp.routeProbeError = error instanceof Error ? error.message : String(error);
+  }
+
   try {
     const appUrl = new URL(liveApp.base + "/api/trains");
     appUrl.searchParams.set("origine", "PARIS (intramuros)");
@@ -123,6 +149,13 @@ async function main() {
   } catch (error) {
     liveApp.parisTargetQuery = { error: error instanceof Error ? error.message : String(error) };
   }
+
+  const directWithTimezoneUrl = urlFor("origine = 'PARIS (intramuros)' AND date = date'" + TARGET_DATE + "'", 1);
+  directWithTimezoneUrl.searchParams.set("timezone", "Europe/Paris");
+  const directWithTimezoneData = await json(directWithTimezoneUrl.toString(), "Direct API with timezone");
+  const directNoTimezoneData = await json(urlFor("origine = 'PARIS (intramuros)' AND date = date'" + TARGET_DATE + "'", 1).toString(), "Direct API without timezone");
+  liveApp.directWithTimezone = directWithTimezoneData.total_count ?? null;
+  liveApp.directWithoutTimezone = directNoTimezoneData.total_count ?? null;
 
   const diagnostics = {
     generated_at: new Date().toISOString(),
