@@ -4,10 +4,12 @@ export const revalidate = 1800;
 
 const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const MAX_LIMIT = 100;
-const ALLOWED_FILTERS = new Set(["origine", "destination", "date", "od_happy_card", "heure_depart", "heure_arrivee"]);
+function escapeOdsqlString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
 
-function escapeFilterValue(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+function normalizeStationQuery(value: string) {
+  return value.trim().toLocaleUpperCase("fr-FR");
 }
 
 export async function GET(request: NextRequest) {
@@ -25,9 +27,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Le nom de la gare est trop long." }, { status: 400 });
   }
 
-  const where: string[] = [];
-  if (origin) where.push(`origine = '${escapeFilterValue(origin)}'`);
-  if (destination) where.push(`destination = '${escapeFilterValue(destination)}'`);
+  const where: string[] = ['od_happy_card = "OUI"'];
+  if (origin) where.push(`startswith(origine, "${escapeOdsqlString(normalizeStationQuery(origin))}")`);
+  if (destination) where.push(`startswith(destination, "${escapeOdsqlString(normalizeStationQuery(destination))}")`);
   if (date) where.push(`date = date'${date}'`);
 
   const url = new URL(API_BASE);
