@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Le nom de la gare est trop long." }, { status: 400 });
   }
 
-  const where: string[] = ['od_happy_card = "OUI"'];
+  const where: string[] = [];
   if (origin) where.push(`startswith(origine, "${escapeOdsqlString(normalizeStationQuery(origin))}")`);
   if (destination) where.push(`startswith(destination, "${escapeOdsqlString(normalizeStationQuery(destination))}")`);
   if (date) where.push(`date = date'${date}'`);
@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       results: Array.isArray(data.results) ? data.results : [],
       total_count: typeof data.total_count === "number" ? data.total_count : null,
+      returned_count: Array.isArray(data.results) ? data.results.length : 0,
+      query_info: { origin: origin ?? null, destination: destination ?? null, date: date ?? null, availabilityFilteredOnServer: false },
       fetched_at: new Date().toISOString(),
       source: "SNCF Open Data",
       note: "Les disponibilités publiées ne constituent pas une réservation confirmée."

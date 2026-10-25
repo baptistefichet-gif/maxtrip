@@ -119,6 +119,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [records, setRecords] = useState<TrainRecord[]>([]);
+  const [sourceTotal, setSourceTotal] = useState<number | null>(null);
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -187,13 +188,14 @@ export default function HomePage() {
           if (!response.ok) throw new Error(data.error || "Impossible de charger toutes les pages SNCF.");
           return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
         }));
-        return { results: firstResults.concat(...remaining), fetchedAt: firstData.fetched_at || new Date().toISOString() };
+        return { results: firstResults.concat(...remaining), fetchedAt: firstData.fetched_at || new Date().toISOString(), total };
       }
 
       const params = new URLSearchParams({ date: outDate, origine: origin });
       if (mode === "classic") params.set("destination", destination);
       const outboundData = await fetchPages(params);
       setRecords(outboundData.results);
+      setSourceTotal(outboundData.total);
       setLastFetch(outboundData.fetchedAt);
 
       if (returnEnabled) {
@@ -311,6 +313,7 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && !error && <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mt-0.5 shrink-0"/>Les disponibilités proviennent du jeu de données SNCF Open Data, mis à jour quotidiennement. Elles ne garantissent pas qu'une place soit encore réservable : vérifie les détails sur SNCF Connect avant de partir.</div>}
+          {lastFetch && !error && <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">Diagnostic : {sourceTotal ?? records.length} enregistrement(s) source pour les critères API ; {records.length} ligne(s) chargée(s) ; {filtered.length} train(s) après filtres MAX et horaires.</div>}
           {lastFetch && routeType !== "indirect" && <p className="mt-2 text-xs text-slate-500">Limite actuelle : les résultats de cette version sont des trains directs présents dans le jeu SNCF. Les combinaisons avec correspondances seront ajoutées séparément après validation de l'algorithme.</p>}
           {routeType === "indirect" && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Le moteur de correspondances est encore en développement. Cette version ne présente pas de trajet indirect comme s'il avait été vérifié.</div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Recherche directe basée sur les champs origine, destination, date et disponibilité MAX. Jusqu'à 1 000 enregistrements peuvent être chargés par recherche.</p>}
