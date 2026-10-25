@@ -55,14 +55,49 @@ function getTime(record: TrainRecord, direction: "departure" | "arrival") {
 }
 
 function formatTime(value: string) {
-  if (!value) return "Horaire non fourni";
-  const match = value.match(/(\\d{1,2})[:hH]?(\\d{2})/);
-  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value;
+  if (!value) return "";
+  const match = value.match(/(\d{1,2})[:hH]?(\d{2})/);
+  return match ? \`\${match[1].padStart(2, "0")}:\${match[2]}\` : value;
 }
 
 function isAvailable(record: TrainRecord) {
   const value = getField(record, ["od_happy_card", "disponibilite", "available", "tgvmax"]);
   return ["oui", "yes", "true", "1", "disponible"].includes(value.toLowerCase());
+}
+
+
+function normalizeText(value: string) {
+  return value.trim().normalize("NFC").toLocaleUpperCase("fr-FR");
+}
+
+function matchesCityOrStation(value: string, query: string) {
+  const station = normalizeText(value);
+  const requested = normalizeText(query);
+  return Boolean(station && requested && station.startsWith(requested));
+}
+
+function isWithinHours(value: string, start: string, end: string) {
+  const time = formatTime(value);
+  return Boolean(time && time >= start && time <= end);
+}
+
+function hasReverseReturn(outbound: TrainRecord, returns: TrainRecord[], start: string, end: string) {
+  const from = getPlace(outbound, "origin");
+  const to = getPlace(outbound, "destination");
+  return returns.some(record =>
+    isAvailable(record) &&
+    normalizeText(getPlace(record, "origin")) === normalizeText(to) &&
+    normalizeText(getPlace(record, "destination")) === normalizeText(from) &&
+    isWithinHours(getTime(record, "departure"), start, end)
+  );
+}
+
+function mapCityName(stationName: string) {
+  const normalized = normalizeText(stationName);
+  return INITIAL_STATIONS.find(station => {
+    const city = normalizeText(station.name);
+    return normalized === city || normalized.startsWith(city + " ");
+  })?.name ?? null;
 }
 
 export default function HomePage() {
