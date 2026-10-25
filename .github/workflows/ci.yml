@@ -7,9 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  production-build:
+  production-build-and-api-smoke-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,5 +19,7 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Smoke-test the live SNCF API and ODSQL filters
+        run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
         run: npm run build

@@ -6,7 +6,7 @@ const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax
 const MAX_LIMIT = 100;
 
 function escapeOdsqlString(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  return value.replace(/'/g, "''");
 }
 
 export async function GET(request: NextRequest) {
