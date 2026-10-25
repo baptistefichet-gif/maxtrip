@@ -112,8 +112,8 @@ export default function HomePage() {
     const coords = new Map(INITIAL_STATIONS.map(s => [s.name.toLocaleLowerCase("fr"), s]));
     return Array.from(names, ([name, count]) => {
       const station = coords.get(name.toLocaleLowerCase("fr"));
-      return station ? { ...station, count } : null;
-    }).filter((item): item is MapStation => Boolean(item));
+      return station ? [{ ...station, count }] : [];
+    });
   }, [filtered, mode, origin, destination]);
 
   async function searchTrains() {
