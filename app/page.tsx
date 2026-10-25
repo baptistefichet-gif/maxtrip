@@ -124,32 +124,29 @@ export default function HomePage() {
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
 
   const filtered = useMemo(() => records.filter(record => {
-    const from = getPlace(record, "origin").toLocaleLowerCase("fr");
-    const to = getPlace(record, "destination").toLocaleLowerCase("fr");
-    if (!from || !to) return false;
-    if (routeType === "direct" && maxChanges !== "0") {
-      // Each record is a single observed segment; this result is still direct for the requested origin/destination.
-    }
-    if (!isAvailable(record)) return false;
-    const dep = formatTime(getTime(record, "departure"));
-    return dep >= outStart && dep <= outEnd;
-  }), [records, routeType, maxChanges, outStart, outEnd]);
+    const from = getPlace(record, "origin");
+    const to = getPlace(record, "destination");
+    if (!from || !to || !isAvailable(record)) return false;
+    if (!matchesCityOrStation(from, origin)) return false;
+    if (mode === "classic" && !matchesCityOrStation(to, destination)) return false;
+    if (!isWithinHours(getTime(record, "departure"), outStart, outEnd)) return false;
+    if (returnEnabled && !hasReverseReturn(record, returnRecords, returnStart, returnEnd)) return false;
+    return routeType !== "indirect";
+  }), [records, returnRecords, origin, destination, mode, outStart, outEnd, returnEnabled, returnStart, returnEnd, routeType, maxChanges]);
 
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
     for (const record of filtered) {
-      const from = getPlace(record, "origin").toLocaleLowerCase("fr");
-      const to = getPlace(record, "destination");
-      if (mode === "classic" && from !== origin.toLocaleLowerCase("fr")) continue;
-      if (mode === "classic" && to.toLocaleLowerCase("fr") !== destination.toLocaleLowerCase("fr")) continue;
-      names.set(to, (names.get(to) || 0) + 1);
+      const city = mapCityName(getPlace(record, "destination"));
+      if (!city) continue;
+      names.set(city, (names.get(city) || 0) + 1);
     }
-    const coords = new Map(INITIAL_STATIONS.map(s => [s.name.toLocaleLowerCase("fr"), s]));
-    return Array.from(names).flatMap(([name, count]) => {
-      const station = coords.get(name.toLocaleLowerCase("fr"));
-      return station ? [{ ...station, count }] : [];
-    });
-  }, [filtered, mode, origin, destination]);
+    const coords = new Map(INITIAL_STATIONS.map(station => [station.name, station]));
+    return Array.from(names, ([name, count]) => {
+      const station = coords.get(name);
+      return station ? { ...station, count } : null;
+    }).filter((station): station is MapStation & { count: number } => station !== null);
+  }, [filtered]);
 
   async function searchTrains() {
     setLoading(true);
