@@ -105,6 +105,8 @@ export default function HomePage() {
   const [mode, setMode] = useState<SearchMode>("explore");
   const [origin, setOrigin] = useState("");
   const [destination, setDestination] = useState("");
+  const [originSearch, setOriginSearch] = useState("");
+  const [destinationSearch, setDestinationSearch] = useState("");
   const [stations, setStations] = useState<StationCatalogue>({ origins: [], destinations: [] });
   const [stationsLoading, setStationsLoading] = useState(true);
   const [stationsError, setStationsError] = useState("");
@@ -127,6 +129,20 @@ export default function HomePage() {
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
+
+  const originOptions = useMemo(() => {
+    const query = normalizeText(originSearch);
+    const matches = stations.origins.filter(station => normalizeText(station).includes(query));
+    if (origin && !matches.includes(origin)) matches.unshift(origin);
+    return matches;
+  }, [stations.origins, originSearch, origin]);
+
+  const destinationOptions = useMemo(() => {
+    const query = normalizeText(destinationSearch);
+    const matches = stations.destinations.filter(station => normalizeText(station).includes(query));
+    if (destination && !matches.includes(destination)) matches.unshift(destination);
+    return matches;
+  }, [stations.destinations, destinationSearch, destination]);
 
   useEffect(() => {
     let active = true;
@@ -273,17 +289,21 @@ export default function HomePage() {
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="block text-sm font-semibold text-slate-700">Gare de départ (liste officielle SNCF)
-                <select value={origin} onChange={e=>setOrigin(e.target.value)} disabled={stationsLoading || stations.origins.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
-                  <option value="">{stationsLoading ? "Chargement des gares…" : "Choisir une gare de départ"}</option>
-                  {stations.origins.map(station => <option key={station} value={station}>{station}</option>)}
+                <input type="search" value={originSearch} onChange={e=>setOriginSearch(e.target.value)} placeholder="Filtrer les gares…" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal" aria-label="Filtrer les gares de départ"/>
+                <select value={origin} onChange={e=>{setOrigin(e.target.value);setOriginSearch("");}} disabled={stationsLoading || stations.origins.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
+                  <option value="">{stationsLoading ? "Chargement des gares…" : `Choisir une gare (${stations.origins.length} disponibles)`}</option>
+                  {originOptions.map(station => <option key={station} value={station}>{station}</option>)}
                 </select>
+                <span className="mt-1 block text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue complet…" : `${stations.origins.length} gares d'origine chargées`}</span>
                 {stationsError && <span className="mt-1 block text-xs font-normal text-red-700">{stationsError}</span>}
               </label>
               {mode==="classic" && <label className="block text-sm font-semibold text-slate-700">Gare d'arrivée (liste officielle SNCF)
-                <select value={destination} onChange={e=>setDestination(e.target.value)} disabled={stationsLoading || stations.destinations.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
-                  <option value="">{stationsLoading ? "Chargement des gares…" : "Choisir une gare d'arrivée"}</option>
-                  {stations.destinations.map(station => <option key={station} value={station}>{station}</option>)}
+                <input type="search" value={destinationSearch} onChange={e=>setDestinationSearch(e.target.value)} placeholder="Filtrer les gares…" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal" aria-label="Filtrer les gares d'arrivée"/>
+                <select value={destination} onChange={e=>{setDestination(e.target.value);setDestinationSearch("");}} disabled={stationsLoading || stations.destinations.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
+                  <option value="">{stationsLoading ? "Chargement du catalogue complet…" : `Choisir une gare (${stations.destinations.length} disponibles)`}</option>
+                  {destinationOptions.map(station => <option key={station} value={station}>{station}</option>)}
                 </select>
+                <span className="mt-1 block text-xs font-normal text-slate-500">{stations.destinations.length} gares d'arrivée chargées</span>
               </label>}
               <label className="block text-sm font-semibold text-slate-700"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
                 <input type="date" value={outDate} onChange={e=>setOutDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
