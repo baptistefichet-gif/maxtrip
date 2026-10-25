@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
   const url = new URL(API_BASE);
   url.searchParams.set("limit", String(limit));
   url.searchParams.set("offset", String(offset));
+  url.searchParams.set("timezone", "Europe/Paris");
   if (where.length) url.searchParams.set("where", where.join(" AND "));
 
   try {
