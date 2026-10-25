@@ -104,7 +104,8 @@ async function main() {
   async function probeLiveApi(label, params) {
     const appUrl = new URL(liveApp.base + "/api/trains");
     for (const [key, value] of Object.entries(params)) appUrl.searchParams.set(key, value);
-    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" } });
+    appUrl.searchParams.set("_probe", String(Date.now()));
+    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
     const body = await response.text();
     let data = null;
     try { data = JSON.parse(body); } catch {}
@@ -132,7 +133,8 @@ async function main() {
     appUrl.searchParams.set("origine", "PARIS (intramuros)");
     appUrl.searchParams.set("date", TARGET_DATE);
     appUrl.searchParams.set("limit", "2");
-    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" } });
+    appUrl.searchParams.set("_probe", String(Date.now()));
+    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" }, cache: "no-store" });
     const body = await response.text();
     let data = null;
     try { data = JSON.parse(body); } catch {}
