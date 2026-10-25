@@ -8,9 +8,6 @@ function escapeOdsqlString(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
-function normalizeStationQuery(value: string) {
-  return value.trim().toLocaleUpperCase("fr-FR");
-}
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -28,8 +25,8 @@ export async function GET(request: NextRequest) {
   }
 
   const where: string[] = [];
-  if (origin) where.push(`startswith(origine, "${escapeOdsqlString(normalizeStationQuery(origin))}")`);
-  if (destination) where.push(`startswith(destination, "${escapeOdsqlString(normalizeStationQuery(destination))}")`);
+  if (origin) where.push(`origine = "${escapeOdsqlString(origin)}"`);
+  if (destination) where.push(`destination = "${escapeOdsqlString(destination)}"`);
   if (date) where.push(`date = date'${date}'`);
 
   const url = new URL(API_BASE);

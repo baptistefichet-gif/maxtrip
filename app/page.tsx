@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 
@@ -11,6 +11,7 @@ const StationMap = dynamic(() => import("@/components/StationMap"), {
 });
 
 type TrainRecord = Record<string, unknown>;
+type StationCatalogue = { origins: string[]; destinations: string[] };
 type SearchMode = "explore" | "classic";
 type RouteType = "all" | "direct" | "indirect";
 
@@ -102,8 +103,11 @@ function mapCityName(stationName: string) {
 
 export default function HomePage() {
   const [mode, setMode] = useState<SearchMode>("explore");
-  const [origin, setOrigin] = useState("Paris");
-  const [destination, setDestination] = useState("Lyon");
+  const [origin, setOrigin] = useState("");
+  const [destination, setDestination] = useState("");
+  const [stations, setStations] = useState<StationCatalogue>({ origins: [], destinations: [] });
+  const [stationsLoading, setStationsLoading] = useState(true);
+  const [stationsError, setStationsError] = useState("");
   const [outDate, setOutDate] = useState(todayString());
   const [returnEnabled, setReturnEnabled] = useState(false);
   const [returnDate, setReturnDate] = useState(todayString());
@@ -124,12 +128,35 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
 
+  useEffect(() => {
+    let active = true;
+    async function loadStations() {
+      try {
+        const response = await fetch("/api/stations");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Impossible de charger les gares SNCF.");
+        const origins = Array.isArray(data.origins) ? data.origins as string[] : [];
+        const destinations = Array.isArray(data.destinations) ? data.destinations as string[] : [];
+        if (!active) return;
+        setStations({ origins, destinations });
+        setOrigin(current => origins.includes(current) ? current : (origins.find(value => normalizeText(value).startsWith("PARIS")) ?? origins[0] ?? ""));
+        setDestination(current => destinations.includes(current) ? current : (destinations.find(value => normalizeText(value).startsWith("LYON")) ?? destinations[0] ?? ""));
+      } catch (err) {
+        if (active) setStationsError(err instanceof Error ? err.message : "Impossible de charger les gares.");
+      } finally {
+        if (active) setStationsLoading(false);
+      }
+    }
+    loadStations();
+    return () => { active = false; };
+  }, []);
+
   const filtered = useMemo(() => records.filter(record => {
     const from = getPlace(record, "origin");
     const to = getPlace(record, "destination");
     if (!from || !to || !isAvailable(record)) return false;
-    if (!matchesCityOrStation(from, origin)) return false;
-    if (mode === "classic" && !matchesCityOrStation(to, destination)) return false;
+    if (normalizeText(from) !== normalizeText(origin)) return false;
+    if (mode === "classic" && normalizeText(to) !== normalizeText(destination)) return false;
     if (!isWithinHours(getTime(record, "departure"), outStart, outEnd)) return false;
     if (returnEnabled && !hasReverseReturn(record, returnRecords, returnStart, returnEnd)) return false;
     return routeType !== "indirect";
@@ -245,11 +272,18 @@ export default function HomePage() {
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-slate-700">Gare ou ville de départ
-                <input value={origin} onChange={e=>setOrigin(e.target.value)} placeholder="Ex. Paris" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600"/>
+              <label className="block text-sm font-semibold text-slate-700">Gare de départ (liste officielle SNCF)
+                <select value={origin} onChange={e=>setOrigin(e.target.value)} disabled={stationsLoading || stations.origins.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
+                  <option value="">{stationsLoading ? "Chargement des gares…" : "Choisir une gare de départ"}</option>
+                  {stations.origins.map(station => <option key={station} value={station}>{station}</option>)}
+                </select>
+                {stationsError && <span className="mt-1 block text-xs font-normal text-red-700">{stationsError}</span>}
               </label>
-              {mode==="classic" && <label className="block text-sm font-semibold text-slate-700">Gare ou ville d'arrivée
-                <input value={destination} onChange={e=>setDestination(e.target.value)} placeholder="Ex. Lyon" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600"/>
+              {mode==="classic" && <label className="block text-sm font-semibold text-slate-700">Gare d'arrivée (liste officielle SNCF)
+                <select value={destination} onChange={e=>setDestination(e.target.value)} disabled={stationsLoading || stations.destinations.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
+                  <option value="">{stationsLoading ? "Chargement des gares…" : "Choisir une gare d'arrivée"}</option>
+                  {stations.destinations.map(station => <option key={station} value={station}>{station}</option>)}
+                </select>
               </label>}
               <label className="block text-sm font-semibold text-slate-700"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
                 <input type="date" value={outDate} onChange={e=>setOutDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
