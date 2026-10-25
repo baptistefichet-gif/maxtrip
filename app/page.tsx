@@ -154,30 +154,58 @@ export default function HomePage() {
     setRecords([]);
     setReturnRecords([]);
     setSelected(null);
+
     try {
-      const params = new URLSearchParams({ limit: "100" });
-      if (mode === "classic") params.set("destination", destination);
-      params.set("origine", origin);
-      params.set("date", outDate);
-      const response = await fetch(`/api/trains?${params.toString()}`);
-      const data = await response.json();
-      if (!response.ok) {
-        const status = typeof data.upstreamStatus === "number" ? ` (HTTP SNCF ${data.upstreamStatus})` : "";
-        const details = typeof data.upstreamMessage === "string" && data.upstreamMessage
-          ? ` — ${data.upstreamMessage}`
-          : "";
-        throw new Error(`${data.error || "Recherche indisponible."}${status}${details}`);
+      if (routeType === "indirect") {
+        throw new Error("La recherche avec correspondances multiples n'est pas encore disponible. Choisis « Tous » ou « Direct uniquement » pour consulter les trains directs publiés.");
       }
-      const results = Array.isArray(data.results) ? data.results as TrainRecord[] : [];
-      setRecords(results);
-      setLastFetch(data.fetched_at || new Date().toISOString());
+
+      async function fetchPages(params: URLSearchParams) {
+        const firstParams = new URLSearchParams(params);
+        firstParams.set("limit", "100");
+        firstParams.set("offset", "0");
+        const firstResponse = await fetch(\`/api/trains?\${firstParams.toString()}\`);
+        const firstData = await firstResponse.json();
+
+        if (!firstResponse.ok) {
+          const status = typeof firstData.upstreamStatus === "number" ? \` (HTTP SNCF \${firstData.upstreamStatus})\` : "";
+          const details = typeof firstData.upstreamMessage === "string" && firstData.upstreamMessage
+            ? \` — \${firstData.upstreamMessage}\`
+            : "";
+          throw new Error(\`\${firstData.error || "Recherche indisponible."}\${status}\${details}\`);
+        }
+
+        const firstResults = Array.isArray(firstData.results) ? firstData.results as TrainRecord[] : [];
+        const total = typeof firstData.total_count === "number" ? firstData.total_count : firstResults.length;
+        const pageCount = Math.min(10, Math.ceil(total / 100));
+        const remaining = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, async (_, index) => {
+          const pageParams = new URLSearchParams(params);
+          pageParams.set("limit", "100");
+          pageParams.set("offset", String((index + 1) * 100));
+          const response = await fetch(\`/api/trains?\${pageParams.toString()}\`);
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Impossible de charger toutes les pages SNCF.");
+          return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
+        }));
+        return { results: firstResults.concat(...remaining), fetchedAt: firstData.fetched_at || new Date().toISOString() };
+      }
+
+      const params = new URLSearchParams({ date: outDate, origine: origin });
+      if (mode === "classic") params.set("destination", destination);
+      const outboundData = await fetchPages(params);
+      setRecords(outboundData.results);
+      setLastFetch(outboundData.fetchedAt);
+
       if (returnEnabled) {
-        const backParams = new URLSearchParams({ limit: "100", date: returnDate });
-        if (mode === "classic") backParams.set("destination", origin);
-        backParams.set("origine", mode === "classic" ? destination : origin);
-        const backResponse = await fetch(`/api/trains?${backParams.toString()}`);
-        const backData = await backResponse.json();
-        if (backResponse.ok && Array.isArray(backData.results)) setReturnRecords(backData.results as TrainRecord[]);
+        const backParams = new URLSearchParams({ date: returnDate });
+        if (mode === "classic") {
+          backParams.set("origine", destination);
+          backParams.set("destination", origin);
+        } else {
+          backParams.set("destination", origin);
+        }
+        const returnData = await fetchPages(backParams);
+        setReturnRecords(returnData.results);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
@@ -186,13 +214,7 @@ export default function HomePage() {
     }
   }
 
-  const displayRecords = useMemo(() => filtered.filter(r => {
-    if (mode === "classic") {
-      return getPlace(r, "origin").toLocaleLowerCase("fr") === origin.toLocaleLowerCase("fr")
-        && getPlace(r, "destination").toLocaleLowerCase("fr") === destination.toLocaleLowerCase("fr");
-    }
-    return getPlace(r, "origin").toLocaleLowerCase("fr") === origin.toLocaleLowerCase("fr");
-  }), [filtered, mode, origin, destination]);
+  const displayRecords = useMemo(() => filtered, [filtered]);
 
   return (
     <main className="min-h-screen bg-paper pb-12">
