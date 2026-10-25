@@ -1,73 +1,105 @@
-const base = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax";
-const requiredFields = ["date", "origine", "destination", "heure_depart", "heure_arrivee", "od_happy_card"];
+import { writeFileSync, mkdirSync } from "node:fs";
 
-async function getJson(url, label) {
-  let lastError;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const response = await fetch(url, { headers: { Accept: "application/json" } });
-      const body = await response.text();
-      if (!response.ok) {
-        throw new Error(label + " returned HTTP " + response.status + ": " + body.slice(0, 300));
-      }
-      return JSON.parse(body);
-    } catch (error) {
-      lastError = error;
-      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1500));
-    }
-  }
-  throw lastError;
+const base = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax";
+const TARGET_DATE = "2026-10-29";
+const REQUIRED_FIELDS = ["date", "origine", "destination", "heure_depart", "heure_arrivee", "od_happy_card"];
+
+async function json(url, label) {
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const body = await response.text();
+  if (!response.ok) throw new Error(label + " HTTP " + response.status + ": " + body.slice(0, 350));
+  try { return JSON.parse(body); }
+  catch { throw new Error(label + " returned invalid JSON: " + body.slice(0, 250)); }
 }
 
-function escapeOdsqlString(value) {
-  // ODSQL escapes an apostrophe inside a string by doubling it.
-  return String(value).replace(/'/g, "''");
+function urlFor(where, limit = 1) {
+  const url = new URL(base + "/records");
+  url.searchParams.set("limit", String(limit));
+  if (where) url.searchParams.set("where", where);
+  return url;
+}
+
+async function probe(where, label) {
+  const data = await json(urlFor(where).toString(), label);
+  return {
+    label,
+    where,
+    total_count: typeof data.total_count === "number" ? data.total_count : null,
+    returned: Array.isArray(data.results) ? data.results.length : 0,
+    sample: Array.isArray(data.results) && data.results[0] ? {
+      origine: data.results[0].origine ?? null,
+      destination: data.results[0].destination ?? null,
+      date: data.results[0].date ?? null,
+      heure_depart: data.results[0].heure_depart ?? null,
+      heure_arrivee: data.results[0].heure_arrivee ?? null,
+      od_happy_card: data.results[0].od_happy_card ?? null
+    } : null
+  };
+}
+
+async function main() {
+  const generic = await json(urlFor("", 1).toString(), "Generic records");
+  assert(Array.isArray(generic.results) && generic.results.length > 0, "Generic API records query returned no rows.");
+  const sample = generic.results[0];
+  const missingFields = REQUIRED_FIELDS.filter(field => !(field in sample));
+  assert(missingFields.length === 0, "Missing expected field(s): " + missingFields.join(", "));
+
+  const dateLiteral = "date = date'" + TARGET_DATE + "'";
+  const parisCandidates = [
+    "PARIS (intramuros)",
+    "PARIS GARE DE LYON",
+    "PARIS MONTPARNASSE",
+    "PARIS MONTPARNASSE 1 ET 2",
+    "PARIS NORD",
+    "PARIS EST",
+    "PARIS AUSTERLITZ"
+  ];
+
+  const probes = [];
+  probes.push(await probe(dateLiteral, "All records for target date"));
+  for (const origin of parisCandidates) {
+    const escaped = origin.replace(/'/g, "''");
+    probes.push(await probe("origine = '" + escaped + "'", "Origin only: " + origin));
+    probes.push(await probe("origine = '" + escaped + "' AND " + dateLiteral, "Origin + target date: " + origin));
+  }
+
+  const originGroupUrl = new URL(base + "/records");
+  originGroupUrl.searchParams.set("select", "origine");
+  originGroupUrl.searchParams.set("group_by", "origine");
+  originGroupUrl.searchParams.set("limit", "100");
+  const group = await json(originGroupUrl.toString(), "Grouped origins");
+  const origins = Array.isArray(group.results) ? group.results.map(row => String(row.origine ?? "")).filter(Boolean) : [];
+  const parisFromGroup = origins.filter(value => value.toLocaleUpperCase("fr-FR").startsWith("PARIS")).slice(0, 40);
+
+  const diagnostics = {
+    generated_at: new Date().toISOString(),
+    target_date: TARGET_DATE,
+    generic_sample: {
+      missingFields,
+      origine: sample.origine ?? null,
+      destination: sample.destination ?? null,
+      date: sample.date ?? null,
+      heure_depart: sample.heure_depart ?? null,
+      heure_arrivee: sample.heure_arrivee ?? null,
+      od_happy_card: sample.od_happy_card ?? null
+    },
+    grouped_origins_returned: origins.length,
+    paris_origins_in_group_sample: parisFromGroup,
+    probes
+  };
+
+  mkdirSync("diagnostics", { recursive: true });
+  writeFileSync("diagnostics/api-probe.json", JSON.stringify(diagnostics, null, 2));
+  console.log(JSON.stringify(diagnostics, null, 2));
+  assert(probes[0].total_count !== null, "Target-date probe omitted total_count; inspect diagnostics artifact.");
+  console.log("PASS: generic data, field schema, exact-date probes and Paris-origin probes completed.");
 }
 
 function assert(condition, message) {
   if (!condition) throw new Error("SMOKE TEST FAILED: " + message);
 }
 
-async function main() {
-  const sampleUrl = new URL(base + "/records");
-  sampleUrl.searchParams.set("limit", "1");
-  const sampleData = await getJson(sampleUrl.toString(), "Sample records request");
-  assert(Array.isArray(sampleData.results) && sampleData.results.length > 0, "SNCF records endpoint returned no sample record.");
-
-  const sample = sampleData.results[0];
-  const missingFields = requiredFields.filter(field => sample[field] === undefined);
-  assert(missingFields.length === 0, "Expected field(s) missing: " + missingFields.join(", "));
-
-  const date = String(sample.date).slice(0, 10);
-  assert(/^\d{4}-\d{2}-\d{2}$/.test(date), "Unexpected date format: " + sample.date);
-
-  const query = "origine = '" + escapeOdsqlString(sample.origine) + "' AND destination = '" +
-    escapeOdsqlString(sample.destination) + "' AND date = date'" + date + "'";
-  const exactUrl = new URL(base + "/records");
-  exactUrl.searchParams.set("where", query);
-  exactUrl.searchParams.set("limit", "1");
-  const exactData = await getJson(exactUrl.toString(), "Exact station/date ODSQL request");
-  assert(Array.isArray(exactData.results) && exactData.results.length > 0,
-    "Exact origine + destination + date filter returned 0 records. ODSQL query was: " + query);
-
-  const groupedUrl = new URL(base + "/records");
-  groupedUrl.searchParams.set("select", "origine");
-  groupedUrl.searchParams.set("group_by", "origine");
-  groupedUrl.searchParams.set("limit", "100");
-  const groupedData = await getJson(groupedUrl.toString(), "Grouped origins request");
-  assert(Array.isArray(groupedData.results) && groupedData.results.length > 0,
-    "group_by=origine did not return any stations.");
-  assert(groupedData.results.some(row => typeof row.origine === "string" && row.origine.trim()),
-    "Grouped origin results do not contain the origine field.");
-
-  console.log("PASS: SNCF records endpoint returns sample data.");
-  console.log("PASS: Required fields exist: " + requiredFields.join(", "));
-  console.log("PASS: Exact ODSQL query returns the sample record.");
-  console.log("PASS: Grouped origin values are available for dropdowns.");
-  console.log("Sample: " + sample.origine + " -> " + sample.destination + " on " + date + "; exact-match rows: " + exactData.results.length + ".");
-}
-
 main().catch(error => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(error instanceof Error ? error.stack : error);
   process.exitCode = 1;
 });

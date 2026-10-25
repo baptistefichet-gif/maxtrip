@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   production-build-and-api-smoke-test:
     runs-on: ubuntu-latest
@@ -19,7 +22,18 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
-      - name: Smoke-test the live SNCF API and ODSQL filters
+      - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
+      - name: Publish probe output to the ci-diagnostics branch
+        if: always()
+        run: |
+          if [ -f diagnostics/api-probe.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch -c ci-diagnostics
+            git add diagnostics/api-probe.json
+            git commit -m "ci: record latest SNCF API probe"
+            git push --force origin HEAD:refs/heads/ci-diagnostics
+          fi
       - name: Build production app
         run: npm run build
