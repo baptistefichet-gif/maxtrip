@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const where: string[] = [];
   if (origin) where.push(`origine = '${escapeFilterValue(origin)}'`);
   if (destination) where.push(`destination = '${escapeFilterValue(destination)}'`);
-  if (date) where.push(`date = '${escapeFilterValue(date)}'`);
+  if (date) where.push(`date = date'${date}'`);
 
   const url = new URL(API_BASE);
   url.searchParams.set("limit", String(limit));
@@ -41,8 +41,13 @@ export async function GET(request: NextRequest) {
       next: { revalidate: 1800 }
     });
     if (!response.ok) {
+      const upstreamMessage = (await response.text()).slice(0, 400);
       return NextResponse.json(
-        { error: "La source SNCF n'a pas répondu correctement.", upstreamStatus: response.status },
+        {
+          error: `La source SNCF a répondu avec HTTP ${response.status}.`,
+          upstreamStatus: response.status,
+          upstreamMessage
+        },
         { status: 502, headers: { "Cache-Control": "no-store" } }
       );
     }

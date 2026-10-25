@@ -129,7 +129,13 @@ export default function HomePage() {
       params.set("date", outDate);
       const response = await fetch(`/api/trains?${params.toString()}`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Recherche indisponible.");
+      if (!response.ok) {
+        const status = typeof data.upstreamStatus === "number" ? ` (HTTP SNCF ${data.upstreamStatus})` : "";
+        const details = typeof data.upstreamMessage === "string" && data.upstreamMessage
+          ? ` — ${data.upstreamMessage}`
+          : "";
+        throw new Error(`${data.error || "Recherche indisponible."}${status}${details}`);
+      }
       const results = Array.isArray(data.results) ? data.results as TrainRecord[] : [];
       setRecords(results);
       setLastFetch(data.fetched_at || new Date().toISOString());
