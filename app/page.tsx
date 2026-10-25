@@ -57,7 +57,7 @@ function getTime(record: TrainRecord, direction: "departure" | "arrival") {
 function formatTime(value: string) {
   if (!value) return "";
   const match = value.match(/(\d{1,2})[:hH]?(\d{2})/);
-  return match ? \`\${match[1].padStart(2, "0")}:\${match[2]}\` : value;
+  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value;
 }
 
 function isAvailable(record: TrainRecord) {
@@ -164,15 +164,15 @@ export default function HomePage() {
         const firstParams = new URLSearchParams(params);
         firstParams.set("limit", "100");
         firstParams.set("offset", "0");
-        const firstResponse = await fetch(\`/api/trains?\${firstParams.toString()}\`);
+        const firstResponse = await fetch(`/api/trains?${firstParams.toString()}`);
         const firstData = await firstResponse.json();
 
         if (!firstResponse.ok) {
-          const status = typeof firstData.upstreamStatus === "number" ? \` (HTTP SNCF \${firstData.upstreamStatus})\` : "";
+          const status = typeof firstData.upstreamStatus === "number" ? ` (HTTP SNCF ${firstData.upstreamStatus})` : "";
           const details = typeof firstData.upstreamMessage === "string" && firstData.upstreamMessage
-            ? \` — \${firstData.upstreamMessage}\`
+            ? ` — ${firstData.upstreamMessage}`
             : "";
-          throw new Error(\`\${firstData.error || "Recherche indisponible."}\${status}\${details}\`);
+          throw new Error(`${firstData.error || "Recherche indisponible."}${status}${details}`);
         }
 
         const firstResults = Array.isArray(firstData.results) ? firstData.results as TrainRecord[] : [];
@@ -182,7 +182,7 @@ export default function HomePage() {
           const pageParams = new URLSearchParams(params);
           pageParams.set("limit", "100");
           pageParams.set("offset", String((index + 1) * 100));
-          const response = await fetch(\`/api/trains?\${pageParams.toString()}\`);
+          const response = await fetch(`/api/trains?${pageParams.toString()}`);
           const data = await response.json();
           if (!response.ok) throw new Error(data.error || "Impossible de charger toutes les pages SNCF.");
           return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
@@ -297,7 +297,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations.length ? destinations : INITIAL_STATIONS} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
+              <StationMap stations={destinations} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
             </div>
             <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-700"/> Liaisons schématiques en lignes droites · carte OpenStreetMap</div>
           </section>
@@ -311,6 +311,8 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && !error && <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mt-0.5 shrink-0"/>Les disponibilités proviennent du jeu de données SNCF Open Data, mis à jour quotidiennement. Elles ne garantissent pas qu'une place soit encore réservable : vérifie les détails sur SNCF Connect avant de partir.</div>}
+          {routeType === "indirect" && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Le moteur de correspondances est encore en développement. Cette version ne présente pas de trajet indirect comme s'il avait été vérifié.</div>}
+          {lastFetch && <p className="mt-2 text-xs text-slate-500">Recherche directe basée sur les champs origine, destination, date et disponibilité MAX. Jusqu'à 1 000 enregistrements peuvent être chargés par recherche.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
             {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun résultat ne correspond aux champs actuellement reconnus. Cela peut signifier qu'il faut adapter le mapping aux noms de champs exacts du jeu SNCF. Aucun itinéraire n'est inventé.</div>}
