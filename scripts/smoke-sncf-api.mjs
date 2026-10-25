@@ -63,13 +63,23 @@ async function main() {
     probes.push(await probe("origine = '" + escaped + "' AND " + dateLiteral, "Origin + target date: " + origin));
   }
 
-  const originGroupUrl = new URL(base + "/records");
-  originGroupUrl.searchParams.set("select", "origine");
-  originGroupUrl.searchParams.set("group_by", "origine");
-  originGroupUrl.searchParams.set("limit", "100");
-  const group = await json(originGroupUrl.toString(), "Grouped origins");
-  const origins = Array.isArray(group.results) ? group.results.map(row => String(row.origine ?? "")).filter(Boolean) : [];
-  const parisFromGroup = origins.filter(value => value.toLocaleUpperCase("fr-FR").startsWith("PARIS")).slice(0, 40);
+  const availableWhere = "origine = 'PARIS (intramuros)' AND date = date'" + TARGET_DATE + "' AND od_happy_card = 'OUI'";
+  const parisAvailable = await probe(availableWhere, "Paris + target date + MAX OUI");
+  const dateAvailable = await probe(dateLiteral + " AND od_happy_card = 'OUI'", "All stations + target date + MAX OUI");
+
+  const origins = [];
+  for (let offset = 0; offset < 2000; offset += 100) {
+    const originGroupUrl = new URL(base + "/records");
+    originGroupUrl.searchParams.set("select", "origine");
+    originGroupUrl.searchParams.set("group_by", "origine");
+    originGroupUrl.searchParams.set("limit", "100");
+    originGroupUrl.searchParams.set("offset", String(offset));
+    const group = await json(originGroupUrl.toString(), "Grouped origins offset " + offset);
+    const rows = Array.isArray(group.results) ? group.results : [];
+    origins.push(...rows.map(row => String(row.origine ?? "")).filter(Boolean));
+    if (rows.length < 100) break;
+  }
+  const parisFromGroup = Array.from(new Set(origins)).filter(value => value.toLocaleUpperCase("fr-FR").startsWith("PARIS")).slice(0, 80);
 
   const diagnostics = {
     generated_at: new Date().toISOString(),
@@ -85,6 +95,9 @@ async function main() {
     },
     grouped_origins_returned: origins.length,
     paris_origins_in_group_sample: parisFromGroup,
+    paris_available_query: parisAvailable,
+    all_available_query: dateAvailable,
+    unique_origin_values_collected: Array.from(new Set(origins)).length,
     probes
   };
 
