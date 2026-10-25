@@ -81,9 +81,53 @@ async function main() {
   }
   const parisFromGroup = Array.from(new Set(origins)).filter(value => value.toLocaleUpperCase("fr-FR").startsWith("PARIS")).slice(0, 80);
 
+  const liveApp = { base: "https://maxtrip-qomi.vercel.app" };
+  try {
+    const stationResponse = await fetch(liveApp.base + "/api/stations", { headers: { Accept: "application/json" } });
+    const stationBody = await stationResponse.text();
+    let stationData = null;
+    try { stationData = JSON.parse(stationBody); } catch {}
+    liveApp.stations = {
+      status: stationResponse.status,
+      originCount: Array.isArray(stationData?.origins) ? stationData.origins.length : null,
+      destinationCount: Array.isArray(stationData?.destinations) ? stationData.destinations.length : null,
+      hasParisIntramuros: Array.isArray(stationData?.origins) && stationData.origins.includes("PARIS (intramuros)"),
+      error: stationData?.error ?? stationBody.slice(0, 200)
+    };
+  } catch (error) {
+    liveApp.stations = { error: error instanceof Error ? error.message : String(error) };
+  }
+
+  try {
+    const appUrl = new URL(liveApp.base + "/api/trains");
+    appUrl.searchParams.set("origine", "PARIS (intramuros)");
+    appUrl.searchParams.set("date", TARGET_DATE);
+    appUrl.searchParams.set("limit", "2");
+    const response = await fetch(appUrl.toString(), { headers: { Accept: "application/json" } });
+    const body = await response.text();
+    let data = null;
+    try { data = JSON.parse(body); } catch {}
+    liveApp.parisTargetQuery = {
+      request: appUrl.toString(),
+      status: response.status,
+      total_count: data?.total_count ?? null,
+      returned_count: Array.isArray(data?.results) ? data.results.length : null,
+      sample: Array.isArray(data?.results) && data.results[0] ? {
+        origine: data.results[0].origine ?? null,
+        destination: data.results[0].destination ?? null,
+        date: data.results[0].date ?? null,
+        od_happy_card: data.results[0].od_happy_card ?? null
+      } : null,
+      error: data?.error ?? body.slice(0, 200)
+    };
+  } catch (error) {
+    liveApp.parisTargetQuery = { error: error instanceof Error ? error.message : String(error) };
+  }
+
   const diagnostics = {
     generated_at: new Date().toISOString(),
     target_date: TARGET_DATE,
+    live_app: liveApp,
     generic_sample: {
       missingFields,
       origine: sample.origine ?? null,
