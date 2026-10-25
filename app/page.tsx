@@ -110,7 +110,7 @@ export default function HomePage() {
       names.set(to, (names.get(to) || 0) + 1);
     }
     const coords = new Map(INITIAL_STATIONS.map(s => [s.name.toLocaleLowerCase("fr"), s]));
-    return Array.from(names, ([name, count]) => {
+    return Array.from(names).flatMap(([name, count]) => {
       const station = coords.get(name.toLocaleLowerCase("fr"));
       return station ? [{ ...station, count }] : [];
     });
