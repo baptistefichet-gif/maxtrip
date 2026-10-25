@@ -1,4 +1,4 @@
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const base = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax";
 const TARGET_DATE = "2026-10-29";
@@ -38,6 +38,9 @@ async function probe(where, label) {
 }
 
 async function main() {
+  const routeSource = readFileSync("app/api/trains/route.ts", "utf8");
+  assert(!routeSource.includes('url.searchParams.set("timezone", "Europe/Paris")'),
+    "Do not set timezone=Europe/Paris on date-only TGV MAX queries; this made valid date searches return zero rows.");
   const generic = await json(urlFor("", 1).toString(), "Generic records");
   assert(Array.isArray(generic.results) && generic.results.length > 0, "Generic API records query returned no rows.");
   const sample = generic.results[0];
