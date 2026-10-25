@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const revalidate = 1800;
 
-const API_BASE = "https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
+const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const MAX_LIMIT = 100;
 const ALLOWED_FILTERS = new Set(["origine", "destination", "date", "od_happy_card", "heure_depart", "heure_arrivee"]);
 
