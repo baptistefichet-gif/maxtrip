@@ -4,6 +4,8 @@ export const revalidate = 21600;
 
 const RECORDS_URL = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const FACETS_URL = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/facets";
+const PAGE_SIZE = 100;
+const MAX_GROUP_PAGES = 20;
 
 type Row = Record<string, unknown>;
 type FacetValue = { value?: string; name?: string };
@@ -15,43 +17,53 @@ function uniqueSorted(values: string[]) {
 }
 
 async function fetchGroupedValues(field: "origine" | "destination") {
-  const url = new URL(RECORDS_URL);
-  url.searchParams.set("select", field);
-  url.searchParams.set("group_by", field);
-  // Explore API allows larger result sets for group_by queries than regular record queries.
-  url.searchParams.set("limit", "20000");
-  url.searchParams.set("offset", "0");
-  url.searchParams.set("lang", "fr");
+  const values: string[] = [];
+  let offset = 0;
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 21600 }
-  });
-  if (!response.ok) {
-    throw new Error(\`Group query for \${field} returned HTTP \${response.status}\`);
+  for (let page = 0; page < MAX_GROUP_PAGES; page++) {
+    const url = new URL(RECORDS_URL);
+    url.searchParams.set("select", field);
+    url.searchParams.set("group_by", field);
+    url.searchParams.set("limit", String(PAGE_SIZE));
+    url.searchParams.set("offset", String(offset));
+    url.searchParams.set("lang", "fr");
+
+    const response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+      next: { revalidate: 21600 }
+    });
+    if (!response.ok) {
+      throw new Error("Group query for " + field + " returned HTTP " + response.status);
+    }
+
+    const data = await response.json();
+    const rows = Array.isArray(data.results) ? data.results as Row[] : [];
+    values.push(...rows.map(row => String(row[field] ?? "")));
+    if (rows.length < PAGE_SIZE) break;
+    offset += rows.length;
   }
-  const data = await response.json();
-  const rows = Array.isArray(data.results) ? data.results as Row[] : [];
-  const values = uniqueSorted(rows.map(row => String(row[field] ?? "")));
-  if (!values.length) throw new Error(\`No grouped values returned for \${field}\`);
-  return values;
+
+  const unique = uniqueSorted(values);
+  if (!unique.length) throw new Error("No grouped values returned for " + field);
+  return unique;
 }
 
 async function fetchFacetFallback(field: "origine" | "destination") {
   const url = new URL(FACETS_URL);
-  url.searchParams.append("facet", \`facet(name="\${field}",limit=2000,sort="alphanum")\`);
+  url.searchParams.append("facet", 'facet(name="' + field + '",limit=2000,sort="alphanum")');
   url.searchParams.set("lang", "fr");
+
   const response = await fetch(url.toString(), {
     headers: { Accept: "application/json" },
     next: { revalidate: 21600 }
   });
-  if (!response.ok) throw new Error(\`Facet query for \${field} returned HTTP \${response.status}\`);
+  if (!response.ok) throw new Error("Facet query for " + field + " returned HTTP " + response.status);
 
   const data = await response.json();
   const groups = Array.isArray(data.facets) ? data.facets as FacetGroup[] : [];
   const group = groups.find(item => item.name === field);
   const values = uniqueSorted((group?.facets ?? []).map(item => String(item.value ?? item.name ?? "")));
-  if (!values.length) throw new Error(\`No facet values returned for \${field}\`);
+  if (!values.length) throw new Error("No facet values returned for " + field);
   return values;
 }
 
@@ -59,7 +71,6 @@ async function getValues(field: "origine" | "destination") {
   try {
     return await fetchGroupedValues(field);
   } catch {
-    // Use the facet endpoint as a fallback if grouped queries are unavailable.
     return await fetchFacetFallback(field);
   }
 }

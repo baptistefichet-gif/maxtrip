@@ -4,15 +4,17 @@ export const revalidate = 1800;
 
 const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const MAX_LIMIT = 100;
-function escapeOdsqlString(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
 
+function escapeOdsqlString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
-  const limit = Math.max(1, Math.min(MAX_LIMIT, Number(params.get("limit") || 50)));
-  const offset = Math.max(0, Math.min(100000, Number(params.get("offset") || 0)));
+  const requestedLimit = Number(params.get("limit") || 50);
+  const requestedOffset = Number(params.get("offset") || 0);
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(MAX_LIMIT, requestedLimit)) : 50;
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.min(100000, requestedOffset)) : 0;
   const origin = params.get("origine")?.trim();
   const destination = params.get("destination")?.trim();
   const date = params.get("date")?.trim();
@@ -25,9 +27,9 @@ export async function GET(request: NextRequest) {
   }
 
   const where: string[] = [];
-  if (origin) where.push(`origine = "${escapeOdsqlString(origin)}"`);
-  if (destination) where.push(`destination = "${escapeOdsqlString(destination)}"`);
-  if (date) where.push(`date = date'${date}'`);
+  if (origin) where.push("origine = '" + escapeOdsqlString(origin) + "'");
+  if (destination) where.push("destination = '" + escapeOdsqlString(destination) + "'");
+  if (date) where.push("date = date'" + date + "'");
 
   const url = new URL(API_BASE);
   url.searchParams.set("limit", String(limit));
@@ -42,14 +44,11 @@ export async function GET(request: NextRequest) {
     });
     if (!response.ok) {
       const upstreamMessage = (await response.text()).slice(0, 400);
-      return NextResponse.json(
-        {
-          error: `La source SNCF a répondu avec HTTP ${response.status}.`,
-          upstreamStatus: response.status,
-          upstreamMessage
-        },
-        { status: 502, headers: { "Cache-Control": "no-store" } }
-      );
+      return NextResponse.json({
+        error: "La source SNCF a répondu avec HTTP " + response.status + ".",
+        upstreamStatus: response.status,
+        upstreamMessage
+      }, { status: 502, headers: { "Cache-Control": "no-store" } });
     }
 
     const data = await response.json();
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest) {
       results: Array.isArray(data.results) ? data.results : [],
       total_count: typeof data.total_count === "number" ? data.total_count : null,
       returned_count: Array.isArray(data.results) ? data.results.length : 0,
-      query_info: { origin: origin ?? null, destination: destination ?? null, date: date ?? null, availabilityFilteredOnServer: false },
+      query_info: { origin: origin ?? null, destination: destination ?? null, date: date ?? null },
       fetched_at: new Date().toISOString(),
       source: "SNCF Open Data",
       note: "Les disponibilités publiées ne constituent pas une réservation confirmée."
