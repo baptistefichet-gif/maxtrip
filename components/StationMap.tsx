@@ -46,7 +46,13 @@ export default function StationMap({
   return (
     <div className="h-full min-h-[360px] w-full">
       <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
-        <TileLayer attribution='&copy; OpenStreetMap contributors &copy; CARTO' url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"/>
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maxZoom={19}
+          updateWhenIdle
+          keepBuffer={3}
+        />
         <FitStations stations={visibleJourney ? visibleJourney.points : fitStations}/>
         {drawnJourneys.map(journey => journey.points.slice(0, -1).map((point, index) => {
           const next = journey.points[index + 1];
