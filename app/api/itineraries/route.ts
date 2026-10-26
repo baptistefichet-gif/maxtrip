@@ -297,19 +297,17 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     }
   }
 
-  const firstLegs = records
-    .filter(record => available(record) && normal(originOf(record)) === normal(origin))
-    .map(record => {
-      const dep = minutes(departureOf(record));
-      const arrRaw = minutes(arrivalOf(record));
-      if (dep < 0 || arrRaw < 0) return null;
-      let arr = arrRaw;
-      if (arr < dep) arr += 1440;
-      return { ...record, __depMin: dep, __arrMin: arr };
-    })
-    .filter((record): record is TrainRecord => record !== null)
-    .filter(record => Number(record.__depMin) >= options.start && Number(record.__depMin) <= options.end)
-    .sort((a, b) => Number(a.__depMin) - Number(b.__depMin));
+  const firstLegs: TrainRecord[] = [];
+  for (const record of records) {
+    if (!available(record) || normal(originOf(record)) !== normal(origin)) continue;
+    const dep = minutes(departureOf(record));
+    const arrRaw = minutes(arrivalOf(record));
+    if (dep < 0 || arrRaw < 0 || dep < options.start || dep > options.end) continue;
+    let arr = arrRaw;
+    if (arr < dep) arr += 1440;
+    firstLegs.push({ ...record, __depMin: dep, __arrMin: arr });
+  }
+  firstLegs.sort((a, b) => Number(a.__depMin) - Number(b.__depMin));
 
   for (const first of firstLegs) {
     const firstDestination = destinationOf(first);
