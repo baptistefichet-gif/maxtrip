@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
@@ -17,6 +17,25 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "
 type StationCatalogue = { origins: string[]; destinations: string[] };
 type SearchMode = "explore" | "classic";
 type RouteType = "all" | "direct" | "indirect";
+
+function HourSelect({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block min-w-0 text-sm font-semibold text-slate-700">
+      <span>{label}</span>
+      <span className="relative mt-2 block">
+        <select
+          aria-label={label}
+          value={value}
+          onChange={event => onChange(event.target.value)}
+          className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-3 pr-10 font-normal outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
+        >
+          {HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}
+        </select>
+        <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"/>
+      </span>
+    </label>
+  );
+}
 
 const INITIAL_STATIONS: MapStation[] = [
   { name: "Paris", lat: 48.8566, lon: 2.3522 },
@@ -264,13 +283,10 @@ export default function HomePage() {
     const mapped = names.map(name => {
       const city = mapCityName(name);
       return INITIAL_STATIONS.find(station => station.name === city) ?? null;
-    });
-    return {
-      key: journey.key,
-      points: mapped.filter((station): station is MapStation => station !== null),
-      complete: mapped.every((station): station is MapStation => station !== null)
-    };
-  }).filter(journey => journey.complete && journey.points.length >= 2).map(({ key, points }) => ({ key, points })), [filtered]);
+    }).filter((station): station is MapStation => station !== null);
+    const points = mapped.filter((station, index) => index === 0 || station.name !== mapped[index - 1]?.name);
+    return { key: journey.key, points };
+  }).filter(journey => journey.points.length >= 2), [filtered]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -385,12 +401,8 @@ export default function HomePage() {
                 <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <label className="block text-sm font-semibold text-slate-700">Départ à partir de
-                  <select value={outStart} onChange={e=>setOutStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select>
-                </label>
-                <label className="block text-sm font-semibold text-slate-700">Départ jusqu’à
-                  <select value={outEnd} onChange={e=>setOutEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select>
-                </label>
+                <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (value > outEnd) setOutEnd(value); }}/>
+                <HourSelect label="Départ jusqu’à" value={outEnd} onChange={value => { setOutEnd(value); if (value < outStart) setOutStart(value); }}/>
               </div>
             </div>
 
@@ -403,10 +415,10 @@ export default function HomePage() {
                 <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
               </label>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <label className="block text-sm font-semibold text-slate-700">Retour à partir de<select value={returnStart} onChange={e=>setReturnStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select></label>
-                <label className="block text-sm font-semibold text-slate-700">Retour jusqu’à<select value={returnEnd} onChange={e=>setReturnEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select></label>
+                <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (value > returnEnd) setReturnEnd(value); }}/>
+                <HourSelect label="Retour jusqu’à" value={returnEnd} onChange={value => { setReturnEnd(value); if (value < returnStart) setReturnStart(value); }}/>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">Le retour est interrogé séparément. Le moteur d'association aller-retour complet reste à valider.</p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">Les retours sont associés à chaque itinéraire selon les gares, la date et la plage horaire sélectionnées.</p>
             </div>}
 
             <button onClick={searchTrains} disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-4 font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60">
@@ -416,7 +428,7 @@ export default function HomePage() {
 
             <button onClick={()=>setShowAdvanced(v=>!v)} className="mt-4 flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-600"><SlidersHorizontal size={16}/> {showAdvanced?"Masquer":"Afficher"} les filtres avancés</button>
             {showAdvanced && <div className="mt-3 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-700">Type de trajet<select value={routeType} onChange={e=>setRouteType(e.target.value as RouteType)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="all">Tous</option><option value="direct">Direct uniquement</option><option value="indirect">Avec correspondance</option></select></label>
+              <label className="text-sm font-semibold text-slate-700">Type de trajet<select value={routeType} onChange={e=>setRouteType(e.target.value as RouteType)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="all">Directs et avec correspondance</option><option value="direct">Direct uniquement</option><option value="indirect">Avec correspondance uniquement</option></select></label>
               <label className="text-sm font-semibold text-slate-700">Correspondances max.<select value={maxChanges} onChange={e=>setMaxChanges(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
               <label className="text-sm font-semibold text-slate-700">Attente minimum (min)<input type="number" min="10" max="120" step="5" value={minWait} onChange={e=>setMinWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
               <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
@@ -425,7 +437,7 @@ export default function HomePage() {
 
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
-              <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Sélectionne une ville pour visualiser ses liaisons</p></div>
+              <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">

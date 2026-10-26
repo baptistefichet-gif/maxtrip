@@ -54,6 +54,12 @@ export default function StationMap({
             pathOptions={{ color: journey.key === selectedJourneyKey ? "#14865c" : "#54708d", weight: journey.key === selectedJourneyKey ? 4 : 2, opacity: journey.key === selectedJourneyKey ? 0.9 : 0.28 }}/>;
         }))}
         {originStation && <CircleMarker center={[originStation.lat, originStation.lon]} radius={9} pathOptions={{ color: "#fff", weight: 2, fillColor: "#e8790c", fillOpacity: 1 }}><Tooltip direction="top" permanent>{originStation.name} · départ</Tooltip></CircleMarker>}
+        {visibleJourney && visibleJourney.points.slice(1, -1).map((station, index) => (
+          <CircleMarker key={visibleJourney.key + "-transfer-" + index} center={[station.lat, station.lon]} radius={7}
+            pathOptions={{ color: "#fff", weight: 2, fillColor: "#e89b18", fillOpacity: 1 }}>
+            <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
+          </CircleMarker>
+        ))}
         {stations.map(station => <CircleMarker key={station.name} center={[station.lat, station.lon]} radius={selected === station.name ? 8 : 5}
           pathOptions={{ color: "#fff", weight: 2, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.96 }}
           eventHandlers={{ click: () => onSelect?.(station.name) }}>

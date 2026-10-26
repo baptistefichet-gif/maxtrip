@@ -70,12 +70,17 @@ function trainKey(record: TrainRecord) {
   return [field(record, ["train_no", "entity"]), originOf(record), destinationOf(record), departureOf(record), arrivalOf(record)].join("|");
 }
 function transferMinimum(previousStation: string, nextStation: string) {
-  if (normal(previousStation) === normal(nextStation)) return 0;
+  const previousNormalized = normal(previousStation);
+  const nextNormalized = normal(nextStation);
+  if (previousNormalized === nextNormalized) return 0;
   const previousCity = cityOf(previousStation);
   const nextCity = cityOf(nextStation);
   if (previousCity !== nextCity) return null;
+  // "intramuros" is an SNCF city-level placeholder, not a physical station.
+  // In Paris, remain conservative: any different station in the city requires at least one hour.
   if (previousCity === "PARIS") return 60;
-  const pair = [normal(previousStation), normal(nextStation)].sort().join("|");
+  if (previousNormalized.includes("(INTRAMUROS)") || nextNormalized.includes("(INTRAMUROS)")) return 0;
+  const pair = [previousNormalized, nextNormalized].sort().join("|");
   const base = CITY_TRANSFER_BASE_MINUTES[pair];
   return base === undefined ? null : base * 2;
 }
@@ -129,7 +134,7 @@ async function fetchWhere(where: string) {
   return { records: records.slice(0, MAX_RECORDS), total, truncated: total > MAX_RECORDS };
 }
 
-async function getRelevantTrains(date: string, roots: string[], direction: "origine" | "destination", maxLegs: number) {
+async function getRelevantTrains(date: string, roots: string[], direction: "origine" | "destination", maxLegs: number, preferredStations: string[] = []) {
   const allRecords: TrainRecord[] = [];
   const queriedStations = new Set<string>();
   let frontier = Array.from(new Set(roots.filter(Boolean)));
@@ -152,7 +157,17 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
     const priority = ["LYON (intramuros)", "DIJON VILLE", "LILLE EUROPE", "BORDEAUX ST JEAN",
       "MARSEILLE ST CHARLES", "NANTES", "RENNES", "STRASBOURG", "MONTPELLIER SAINT ROCH",
       "TOURS", "AVIGNON TGV", "VALENCE TGV", "LE MANS", "ANGERS SAINT LAUD"];
+    const preferredIndex = (station: string) => preferredStations.findIndex(preferred =>
+      normal(station) === normal(preferred) || transferMinimum(station, preferred) !== null
+    );
     stations.sort((a, b) => {
+      const preferredA = preferredIndex(a);
+      const preferredB = preferredIndex(b);
+      if (preferredA >= 0 || preferredB >= 0) {
+        if (preferredA < 0) return 1;
+        if (preferredB < 0) return -1;
+        if (preferredA !== preferredB) return preferredA - preferredB;
+      }
       const ai = priority.findIndex(value => normal(a).startsWith(normal(value)));
       const bi = priority.findIndex(value => normal(b).startsWith(normal(value)));
       return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b, "fr");
@@ -324,6 +339,15 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
   return found.sort((a, b) => a.departureMinutes - b.departureMinutes || a.durationMinutes - b.durationMinutes);
 }
 
+function combineTrainSets(...sets: Array<{ records: TrainRecord[]; total: number; truncated: boolean }>) {
+  const records = Array.from(new Map(sets.flatMap(set => set.records).map(record => [trainKey(record), record])).values());
+  return {
+    records,
+    total: sets.reduce((sum, set) => sum + set.total, 0),
+    truncated: sets.some(set => set.truncated)
+  };
+}
+
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const date = params.get("date")?.trim() ?? "";
@@ -356,14 +380,37 @@ export async function GET(request: NextRequest) {
 
   try {
     const maxLegs = params.get("routeType") === "direct" ? 1 : maxChanges + 1;
-    const outboundData = await getRelevantTrains(date, [origin], "origine", maxLegs);
+
+    // In a classic search, look backwards from the target first. This gives the
+    // forward search a list of real feeder stations instead of guessing transfer hubs.
+    const targetArrivalData = destination && maxLegs > 1
+      ? await getRelevantTrains(date, [destination], "destination", 1)
+      : null;
+    const targetFeederStations = targetArrivalData
+      ? Array.from(new Set(targetArrivalData.records.map(originOf).filter(Boolean)))
+      : [];
+    const outboundRootData = await getRelevantTrains(date, [origin], "origine", maxLegs, targetFeederStations);
+    const outboundData = targetArrivalData
+      ? combineTrainSets(outboundRootData, targetArrivalData)
+      : outboundRootData;
+
     let routes = makeJourneys(outboundData.records, origin, destination, {
       start, end, maxLegs,
       minWait, maxWait, indirectOnly
     });
 
     if (returnRequired) {
-      const returnData = await getRelevantTrains(returnDate, [origin], "destination", maxLegs);
+      const returnArrivalData = await getRelevantTrains(returnDate, [origin], "destination", maxLegs);
+      let returnData = returnArrivalData;
+
+      // For a classic trip, explore outward from the selected destination as well,
+      // then join it with the legs that arrive at the return station.
+      if (destination && maxLegs > 1) {
+        const returnFeederStations = Array.from(new Set(returnArrivalData.records.map(originOf).filter(Boolean)));
+        const returnDepartureData = await getRelevantTrains(returnDate, [destination], "origine", maxLegs, returnFeederStations);
+        returnData = combineTrainSets(returnArrivalData, returnDepartureData);
+      }
+
       const returnStartMinutes = returnStart;
       const returnEndMinutes = returnEnd;
       const returnCache = new Map<string, Journey[]>();

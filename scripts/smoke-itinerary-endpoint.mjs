@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const port = 3141;
 const base = "http://127.0.0.1:" + port;
@@ -27,7 +27,10 @@ async function waitForServer() {
 }
 
 async function main() {
-  const diagnostic = { started_at: new Date().toISOString() };
+  const pageSource = readFileSync("app/page.tsx", "utf8");
+  if (pageSource.includes('type="time"')) throw new Error("The app must use hour-only dropdowns, not the browser's hour/minute time picker.");
+  if (!pageSource.includes("function HourSelect")) throw new Error("Reusable hour-only selector is missing.");
+  const diagnostic = { started_at: new Date().toISOString(), hourOnlySelectors: true };
   try {
     await waitForServer();
     const url = new URL(base + "/api/itineraries");
@@ -84,6 +87,40 @@ async function main() {
       } : null
     }, null, 2));
     if (data.routes.length === 0) throw new Error("No route found for Paris on the test date; investigate the graph/data filters.");
+
+    const classicConnectionUrl = new URL(base + "/api/itineraries");
+    classicConnectionUrl.searchParams.set("date", "2026-10-29");
+    classicConnectionUrl.searchParams.set("origine", "PARIS (intramuros)");
+    classicConnectionUrl.searchParams.set("destination", "LYON (intramuros)");
+    classicConnectionUrl.searchParams.set("start", "08:00");
+    classicConnectionUrl.searchParams.set("end", "23:00");
+    classicConnectionUrl.searchParams.set("maxChanges", "2");
+    classicConnectionUrl.searchParams.set("minWait", "20");
+    classicConnectionUrl.searchParams.set("maxWait", "90");
+    classicConnectionUrl.searchParams.set("routeType", "indirect");
+    const classicStarted = Date.now();
+    const classicResponse = await fetch(classicConnectionUrl, { signal: AbortSignal.timeout(90000), cache: "no-store" });
+    const classicBody = await classicResponse.text();
+    let classicData;
+    try { classicData = JSON.parse(classicBody); } catch { throw new Error("Classic connection search returned non-JSON: " + classicBody.slice(0, 300)); }
+    if (!classicResponse.ok) throw new Error("Classic connection search returned HTTP " + classicResponse.status + ": " + classicBody.slice(0, 400));
+    if (!Array.isArray(classicData.routes)) throw new Error("Classic connection search omitted the routes array.");
+    if (classicData.routes.some(route => route.changes < 1 || route.destination !== "LYON (intramuros)")) {
+      throw new Error("Classic indirect search returned a direct route or a route to the wrong destination.");
+    }
+    diagnostic.classicIndirectSearch = {
+      status: classicResponse.status,
+      elapsedMs: Date.now() - classicStarted,
+      routeCount: classicData.routes.length,
+      multiLegRoutes: classicData.routes.filter(route => route.changes >= 1).length,
+      sample: classicData.routes[0] ? {
+        destination: classicData.routes[0].destination,
+        changes: classicData.routes[0].changes,
+        legs: classicData.routes[0].legs.map(leg => ({
+          origin: leg.origine, destination: leg.destination, departure: leg.heure_depart, arrival: leg.heure_arrivee
+        }))
+      } : null
+    };
 
     const returnUrl = new URL(base + "/api/itineraries");
     returnUrl.searchParams.set("date", "2026-10-29");
