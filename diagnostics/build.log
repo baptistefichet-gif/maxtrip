@@ -1,0 +1,46 @@
+
+> maxtrip@0.1.0 build
+> next build
+
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+  ▲ Next.js 14.2.35
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+   We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
+   The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+   	- allowJs was set to true
+   	- skipLibCheck was set to true
+
+   Collecting page data ...
+   Generating static pages (0/7) ...
+   Generating static pages (1/7) 
+   Generating static pages (3/7) 
+   Generating static pages (5/7) 
+ ✓ Generating static pages (7/7)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    12.2 kB        99.6 kB
+├ ○ /_not-found                          873 B          88.2 kB
+├ ƒ /api/itineraries                     0 B                0 B
+├ ○ /api/stations                        0 B                0 B
+└ ƒ /api/trains                          0 B                0 B
++ First Load JS shared by all            87.4 kB
+  ├ chunks/117-1bc07afa4839cf6f.js       31.7 kB
+  ├ chunks/fd9d1056-e070525407d48905.js  53.6 kB
+  └ other shared chunks (total)          1.98 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

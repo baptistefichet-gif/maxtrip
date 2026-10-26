@@ -1,0 +1,268 @@
+{
+  "generated_at": "2026-10-26T14:26:06.537Z",
+  "target_date": "2026-10-29",
+  "limit_probes": [
+    {
+      "requestedLimit": 100,
+      "httpStatus": 200,
+      "returned": 100,
+      "total_count": 3929,
+      "error": null
+    },
+    {
+      "requestedLimit": 250,
+      "httpStatus": 400,
+      "returned": null,
+      "total_count": null,
+      "error": "{\n  \"error_code\": \"InvalidRESTParameterError\",\n  \"message\": \"Invalid value for limit API parameter: 250 was found but -1 <= limit <= 100 is expected.\"\n}"
+    },
+    {
+      "requestedLimit": 500,
+      "httpStatus": 400,
+      "returned": null,
+      "total_count": null,
+      "error": "{\n  \"error_code\": \"InvalidRESTParameterError\",\n  \"message\": \"Invalid value for limit API parameter: 500 was found but -1 <= limit <= 100 is expected.\"\n}"
+    },
+    {
+      "requestedLimit": 1000,
+      "httpStatus": 400,
+      "returned": null,
+      "total_count": null,
+      "error": "{\n  \"error_code\": \"InvalidRESTParameterError\",\n  \"message\": \"Invalid value for limit API parameter: 1000 was found but -1 <= limit <= 100 is expected.\"\n}"
+    }
+  ],
+  "live_app": {
+    "base": "https://maxtrip-qomi.vercel.app",
+    "stations": {
+      "status": 200,
+      "originCount": 307,
+      "destinationCount": 306,
+      "hasParisIntramuros": true,
+      "error": "{\"origins\":[\"AEROPORT ROISSY CDG 2 TGV\",\"AGDE\",\"AGEN\",\"AIX EN PROVENCE TGV\",\"AIX LES BAINS LE REVARD\",\"ALBI MADELEINE\",\"ALBI VILLE\",\"AMIENS\",\"ANCENIS\",\"ANGERS SAINT LAUD\",\"ANGOULEME\",\"ANNECY\",\"ANNEMAS"
+    },
+    "routeOriginOnly": {
+      "label": "origin only",
+      "request": "https://maxtrip-qomi.vercel.app/api/trains?origine=PARIS+%28intramuros%29&limit=2&_probe=1793024763966",
+      "status": 200,
+      "total_count": 31861,
+      "returned_count": 2,
+      "query_info": {
+        "origin": "PARIS (intramuros)",
+        "destination": null,
+        "date": null
+      },
+      "error": null
+    },
+    "routeDateOnly": {
+      "label": "date only",
+      "request": "https://maxtrip-qomi.vercel.app/api/trains?date=2026-10-29&limit=2&_probe=1793024764059",
+      "status": 200,
+      "total_count": 11579,
+      "returned_count": 2,
+      "query_info": {
+        "origin": null,
+        "destination": null,
+        "date": "2026-10-29"
+      },
+      "error": null
+    },
+    "routeOriginDate": {
+      "label": "origin + date",
+      "request": "https://maxtrip-qomi.vercel.app/api/trains?origine=PARIS+%28intramuros%29&date=2026-10-29&limit=2&_probe=1793024764097",
+      "status": 200,
+      "total_count": 1094,
+      "returned_count": 2,
+      "query_info": {
+        "origin": "PARIS (intramuros)",
+        "destination": null,
+        "date": "2026-10-29"
+      },
+      "error": null
+    },
+    "parisTargetQuery": {
+      "request": "https://maxtrip-qomi.vercel.app/api/trains?origine=PARIS+%28intramuros%29&date=2026-10-29&limit=2&_probe=1793024764157",
+      "status": 200,
+      "total_count": 1094,
+      "returned_count": 2,
+      "sample": {
+        "origine": "PARIS (intramuros)",
+        "destination": "MARSEILLE ST CHARLES",
+        "date": "2026-10-29",
+        "od_happy_card": "NON"
+      },
+      "error": "{\"results\":[{\"date\":\"2026-10-29\",\"train_no\":\"6153\",\"entity\":\"PAAZUR\",\"axe\":\"SUD EST\",\"origine_iata\":\"FRPLY\",\"destination_iata\":\"FRMSC\",\"origine\":\"PARIS (intramuros)\",\"destination\":\"MARSEILLE ST CHARLE"
+    },
+    "directWithTimezone": 0,
+    "directWithoutTimezone": 1094
+  },
+  "generic_sample": {
+    "missingFields": [],
+    "origine": "LES AUBRAIS ORLEANS",
+    "destination": "TOULOUSE MATABIAU",
+    "date": "2026-11-03",
+    "heure_depart": "07:29",
+    "heure_arrivee": "13:37",
+    "od_happy_card": "OUI"
+  },
+  "grouped_origins_returned": 307,
+  "paris_origins_in_group_sample": [
+    "PARIS (intramuros)"
+  ],
+  "paris_available_query": {
+    "label": "Paris + target date + MAX OUI",
+    "where": "origine = 'PARIS (intramuros)' AND date = date'2026-10-29' AND od_happy_card = 'OUI'",
+    "total_count": 312,
+    "returned": 1,
+    "sample": {
+      "origine": "PARIS (intramuros)",
+      "destination": "LYON (intramuros)",
+      "date": "2026-10-29",
+      "heure_depart": "07:00",
+      "heure_arrivee": "09:10",
+      "od_happy_card": "OUI"
+    }
+  },
+  "all_available_query": {
+    "label": "All stations + target date + MAX OUI",
+    "where": "date = date'2026-10-29' AND od_happy_card = 'OUI'",
+    "total_count": 3929,
+    "returned": 1,
+    "sample": {
+      "origine": "BRIVE LA GAILLARDE",
+      "destination": "CHATEAUROUX",
+      "date": "2026-10-29",
+      "heure_depart": "03:59",
+      "heure_arrivee": "06:13",
+      "od_happy_card": "OUI"
+    }
+  },
+  "unique_origin_values_collected": 307,
+  "probes": [
+    {
+      "label": "All records for target date",
+      "where": "date = date'2026-10-29'",
+      "total_count": 11579,
+      "returned": 1,
+      "sample": {
+        "origine": "ST DENIS PRES MARTEL",
+        "destination": "PARIS (intramuros)",
+        "date": "2026-10-29",
+        "heure_depart": "00:39",
+        "heure_arrivee": "09:31",
+        "od_happy_card": "NON"
+      }
+    },
+    {
+      "label": "Origin only: PARIS (intramuros)",
+      "where": "origine = 'PARIS (intramuros)'",
+      "total_count": 31861,
+      "returned": 1,
+      "sample": {
+        "origine": "PARIS (intramuros)",
+        "destination": "SOUILLAC",
+        "date": "2026-11-03",
+        "heure_depart": "06:28",
+        "heure_arrivee": "11:27",
+        "od_happy_card": "OUI"
+      }
+    },
+    {
+      "label": "Origin + target date: PARIS (intramuros)",
+      "where": "origine = 'PARIS (intramuros)' AND date = date'2026-10-29'",
+      "total_count": 1094,
+      "returned": 1,
+      "sample": {
+        "origine": "PARIS (intramuros)",
+        "destination": "MARSEILLE ST CHARLES",
+        "date": "2026-10-29",
+        "heure_depart": "18:10",
+        "heure_arrivee": "21:13",
+        "od_happy_card": "NON"
+      }
+    },
+    {
+      "label": "Origin only: PARIS GARE DE LYON",
+      "where": "origine = 'PARIS GARE DE LYON'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS GARE DE LYON",
+      "where": "origine = 'PARIS GARE DE LYON' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin only: PARIS MONTPARNASSE",
+      "where": "origine = 'PARIS MONTPARNASSE'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS MONTPARNASSE",
+      "where": "origine = 'PARIS MONTPARNASSE' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin only: PARIS MONTPARNASSE 1 ET 2",
+      "where": "origine = 'PARIS MONTPARNASSE 1 ET 2'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS MONTPARNASSE 1 ET 2",
+      "where": "origine = 'PARIS MONTPARNASSE 1 ET 2' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin only: PARIS NORD",
+      "where": "origine = 'PARIS NORD'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS NORD",
+      "where": "origine = 'PARIS NORD' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin only: PARIS EST",
+      "where": "origine = 'PARIS EST'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS EST",
+      "where": "origine = 'PARIS EST' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin only: PARIS AUSTERLITZ",
+      "where": "origine = 'PARIS AUSTERLITZ'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    },
+    {
+      "label": "Origin + target date: PARIS AUSTERLITZ",
+      "where": "origine = 'PARIS AUSTERLITZ' AND date = date'2026-10-29'",
+      "total_count": 0,
+      "returned": 0,
+      "sample": null
+    }
+  ]
+}
