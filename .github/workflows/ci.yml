@@ -25,17 +25,24 @@ jobs:
       - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
-        run: npm run build
+        run: |
+          mkdir -p diagnostics
+          set +e
+          npm run build > diagnostics/build.log 2>&1
+          build_status=$?
+          cat diagnostics/build.log
+          echo "$build_status" > diagnostics/build-exit-code.txt
+          exit "$build_status"
       - name: Smoke-test itinerary search against live SNCF data
         run: node scripts/smoke-itinerary-endpoint.mjs
       - name: Publish probe output to the ci-diagnostics branch
         if: always()
         run: |
-          if [ -f diagnostics/api-probe.json ] || [ -f diagnostics/itinerary-probe.json ]; then
+          if [ -f diagnostics/api-probe.json ] || [ -f diagnostics/itinerary-probe.json ] || [ -f diagnostics/build.log ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+users.noreply.github.com"
             git switch -c ci-diagnostics
-            git add diagnostics/api-probe.json diagnostics/itinerary-probe.json || true
+            git add diagnostics/api-probe.json diagnostics/itinerary-probe.json diagnostics/build.log diagnostics/build-exit-code.txt 2>/dev/null || true
             git commit -m "ci: record latest SNCF and itinerary diagnostics" || true
             git push --force origin HEAD:refs/heads/ci-diagnostics
           fi
