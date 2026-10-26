@@ -127,8 +127,9 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     if (!from || !to || dep < 0 || rawArr < 0) continue;
     let arr = rawArr;
     if (arr < dep) arr += 1440;
-    if (!adjacency.has(from)) adjacency.set(from, []);
-    adjacency.get(from)!.push({ ...record, __depMin: dep, __arrMin: arr });
+    const fromCity = cityOf(from);
+    if (!adjacency.has(fromCity)) adjacency.set(fromCity, []);
+    adjacency.get(fromCity)!.push({ ...record, __depMin: dep, __arrMin: arr });
   }
   for (const list of adjacency.values()) {
     list.sort((a, b) => Number(a.__depMin) - Number(b.__depMin));
@@ -179,7 +180,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
       if (destination) return;
     }
     if (path.length >= options.maxLegs) return;
-    const candidates = adjacency.get(current) ?? [];
+    const candidates = adjacency.get(cityOf(current)) ?? [];
     let scanned = 0;
     for (const next of candidates) {
       if (scanned++ >= 80) break;
