@@ -381,11 +381,11 @@ export default function HomePage() {
                 <input type="date" value={outDate} onChange={e=>setOutDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
               <div className="grid grid-cols-2 gap-2">
-                <label className="block text-sm font-semibold text-slate-700">Départ après
-                  <input type="time" value={outStart} onChange={e=>setOutStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-2 py-3 font-normal"/>
+                <label className="block text-sm font-semibold text-slate-700">Départ à partir de
+                  <select value={outStart} onChange={e=>setOutStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select>
                 </label>
-                <label className="block text-sm font-semibold text-slate-700">Départ avant
-                  <input type="time" value={outEnd} onChange={e=>setOutEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-2 py-3 font-normal"/>
+                <label className="block text-sm font-semibold text-slate-700">Départ jusqu’à
+                  <select value={outEnd} onChange={e=>setOutEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select>
                 </label>
               </div>
             </div>
@@ -399,8 +399,8 @@ export default function HomePage() {
                 <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
               </label>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <label className="block text-sm font-semibold text-slate-700">Retour après<input type="time" value={returnStart} onChange={e=>setReturnStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal"/></label>
-                <label className="block text-sm font-semibold text-slate-700">Retour avant<input type="time" value={returnEnd} onChange={e=>setReturnEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal"/></label>
+                <label className="block text-sm font-semibold text-slate-700">Retour à partir de<select value={returnStart} onChange={e=>setReturnStart(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select></label>
+                <label className="block text-sm font-semibold text-slate-700">Retour jusqu’à<select value={returnEnd} onChange={e=>setReturnEnd(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-2 py-3 font-normal">{HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}</select></label>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Le retour est interrogé séparément. Le moteur d'association aller-retour complet reste à valider.</p>
             </div>}
@@ -425,7 +425,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
             </div>
             <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-700"/> Liaisons schématiques en lignes droites · carte OpenStreetMap</div>
           </section>
@@ -439,76 +439,65 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && !error && <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mt-0.5 shrink-0"/>Les disponibilités proviennent du jeu de données SNCF Open Data, mis à jour quotidiennement. Elles ne garantissent pas qu'une place soit encore réservable : vérifie les détails sur SNCF Connect avant de partir.</div>}
-          {lastFetch && !error && <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">Diagnostic : {sourceTotal ?? records.length} enregistrement(s) source pour les critères API ; {records.length} ligne(s) chargée(s) ; {filtered.length} train(s) après filtres MAX et horaires.</div>}
-          {lastFetch && routeType !== "indirect" && <p className="mt-2 text-xs text-slate-500">Limite actuelle : les résultats de cette version sont des trains directs présents dans le jeu SNCF. Les combinaisons avec correspondances seront ajoutées séparément après validation de l'algorithme.</p>}
+          {lastFetch && !error && <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600">Diagnostic : {sourceTotal ?? 0} trains MAX signalés dans la source ; {filtered.length} itinéraire(s) construit(s) avec les correspondances.</div>}
+          {lastFetch && routeType !== "indirect" && <p className="mt-2 text-xs text-slate-500">Les itinéraires sont assemblés à partir des trains MAX signalés disponibles. Les changements de gare ne sont proposés que si une règle de transfert est connue.</p>}
           {routeType === "indirect" && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Le moteur de correspondances est encore en développement. Cette version ne présente pas de trajet indirect comme s'il avait été vérifié.</div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Recherche directe basée sur les champs origine, destination, date et disponibilité MAX. Jusqu'à 1 000 enregistrements peuvent être chargés par recherche.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
             {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun résultat ne correspond aux champs actuellement reconnus. Cela peut signifier qu'il faut adapter le mapping aux noms de champs exacts du jeu SNCF. Aucun itinéraire n'est inventé.</div>}
-            {displayRecords.map((record, index) => {
-              const from = getPlace(record, "origin");
-              const to = getPlace(record, "destination");
-              const depRaw = getTime(record, "departure");
-              const arrRaw = getTime(record, "arrival");
-              const dep = formatTime(depRaw);
-              const arr = formatTime(arrRaw);
-              const tripKey = getTripKey(record);
+            {displayRecords.map((journey, index) => {
+              const from = journey.origin;
+              const to = journey.destination;
+              const dep = journey.departure;
+              const arr = journey.arrival;
+              const tripKey = journey.key;
               const isExpanded = expandedTripKey === tripKey;
-              const matchingReturns = returnEnabled ? returnRecords.filter(back =>
-                isAvailable(back) &&
-                normalizeText(getPlace(back, "origin")) === normalizeText(to) &&
-                normalizeText(getPlace(back, "destination")) === normalizeText(from) &&
-                isWithinHours(getTime(back, "departure"), returnStart, returnEnd)
-              ) : [];
-              return <article key={tripKey + "-" + index} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              const matchingReturns = journey.returns ?? [];
+              const finalCity = mapCityName(to);
+              return <article key={tripKey + "-" + index} className={"rounded-2xl border bg-white p-4 shadow-sm sm:p-5 " + (selectedJourneyKey === tripKey ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold"><TrainFront size={17} className="text-emerald-700"/>{from} <span className="text-slate-400">→</span> {to}</div>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">MAX signalé disponible</span>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">{journey.changes === 0 ? "Direct" : journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
                 </div>
                 <div className="mt-4 grid grid-cols-3 items-center gap-2">
                   <div><div className="text-2xl font-black">{dep}</div><div className="mt-1 text-xs text-slate-500">Départ</div></div>
-                  <div className="text-center text-xs text-slate-500"><div className="mx-auto mb-2 h-px bg-slate-200"/><Clock3 size={15} className="mx-auto mb-1"/>Horaires publiés</div>
+                  <div className="text-center text-xs text-slate-500"><div className="mx-auto mb-2 h-px bg-slate-200"/><Clock3 size={15} className="mx-auto mb-1"/>{Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</div>
                   <div className="text-right"><div className="text-2xl font-black">{arr}</div><div className="mt-1 text-xs text-slate-500">Arrivée</div></div>
                 </div>
-                <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier et réserver sur SNCF Connect <ExternalLink size={14}/></a>
-                <button type="button" onClick={() => setExpandedTripKey(isExpanded ? null : tripKey)} aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
-                  <span>{returnEnabled ? `Voir les ${matchingReturns.length} retour(s) compatibles` : "Voir les détails du trajet"}</span>
-                  <span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                {journey.legs.length > 1 && <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">{journey.legs.slice(0, -1).map((leg, legIndex) => {
+                  const gap = layoverMinutes(leg, journey.legs[legIndex + 1]);
+                  return <span key={getTripKey(leg)} className="rounded-full bg-amber-50 px-3 py-1">Changement à {getPlace(leg, "destination")} · attente {gap === null ? "n.c." : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0")}</span>;
+                })}</div>}
+                <button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
+                  aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
+                  <span>{returnEnabled ? "Voir " + matchingReturns.length + " retour(s) compatible(s)" : "Voir le détail des segments"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
                 {isExpanded && <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
-                  <h3 className="font-bold text-slate-900">Détail de l'aller</h3>
-                  <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
-                    <div><p className="text-xs text-slate-500">Date</p><p className="font-semibold">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR")}</p></div>
-                    <div><p className="text-xs text-slate-500">Horaire</p><p className="font-semibold">{dep} → {arr}</p></div>
-                    <div className="col-span-2"><p className="text-xs text-slate-500">Gares</p><p className="font-semibold">{from} → {to}</p></div>
-                  </div>
-                  <div className="mt-4 border-t border-emerald-100 pt-4">
-                    <h3 className="font-bold text-slate-900">Retours compatibles</h3>
-                    {returnEnabled
-                      ? matchingReturns.length
-                        ? <div className="mt-3 grid gap-2">{matchingReturns.map((back, backIndex) => {
-                            const backFrom = getPlace(back, "origin");
-                            const backTo = getPlace(back, "destination");
-                            const backDep = formatTime(getTime(back, "departure"));
-                            const backArr = formatTime(getTime(back, "arrival"));
-                            const backTrain = getField(back, ["train_no", "train_number"]);
-                            return <div key={getTripKey(back) + "-" + backIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="font-bold">{backFrom} <span className="text-slate-400">→</span> {backTo}</p>
-                                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">MAX signalé disponible</span>
-                              </div>
-                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                <span><strong>{backDep}</strong> → <strong>{backArr}</strong></span>
-                                <span className="text-slate-500">{new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</span>
-                                {backTrain && <span className="text-slate-500">Train {backTrain}</span>}
-                              </div>
-                              <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 underline">Vérifier ce retour sur SNCF Connect <ExternalLink size={13}/></a>
-                            </div>;
-                          })}</div>
-                        : <p className="mt-2 text-sm text-slate-600">Aucun retour ne correspond aux gares et à la plage horaire choisies. Essaie une autre heure ou une autre date.</p>
-                      : <p className="mt-2 text-sm text-slate-600">Active « Retour MAX disponible obligatoire » et indique la date et la plage horaire du retour pour afficher ici les retours compatibles avec cet aller.</p>}
-                  </div>
+                  <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
+                  <div className="mt-3 grid gap-3">{journey.legs.map((leg, legIndex) => {
+                    const legFrom = getPlace(leg, "origin");
+                    const legTo = getPlace(leg, "destination");
+                    const trainNo = getField(leg, ["train_no", "train_number"]);
+                    return <div key={getTripKey(leg) + "-" + legIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
+                      <div className="flex items-center justify-between gap-2"><span className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Train {legIndex + 1}</span>{trainNo && <span className="text-xs text-slate-500">N° {trainNo}</span>}</div>
+                      <p className="mt-1 font-bold">{legFrom} <span className="text-slate-400">→</span> {legTo}</p>
+                      <p className="mt-1 text-sm">{formatTime(getTime(leg, "departure"))} → {formatTime(getTime(leg, "arrival"))}</p>
+                      {legIndex < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {legTo} · {(() => { const gap = layoverMinutes(leg, journey.legs[legIndex + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
+                    </div>;
+                  })}</div>
+                  <h3 className="mt-5 border-t border-emerald-100 pt-4 font-bold text-slate-900">Retours compatibles</h3>
+                  {returnEnabled
+                    ? matchingReturns.length
+                      ? <div className="mt-3 grid gap-3">{matchingReturns.map((back, backIndex) => <div key={back.key + "-" + backIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{back.origin} <span className="text-slate-400">→</span> {back.destination}</p><span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">{back.changes === 0 ? "Direct" : back.changes + " correspondance(s)"}</span></div>
+                        <p className="mt-2 text-sm">{back.departure} → {back.arrival} · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>
+                        <div className="mt-2 grid gap-2">{back.legs.map((leg, backLegIndex) => <p key={getTripKey(leg) + "-" + backLegIndex} className="text-sm text-slate-600">{formatTime(getTime(leg, "departure"))} {getPlace(leg, "origin")} → {formatTime(getTime(leg, "arrival"))} {getPlace(leg, "destination")}</p>)}</div>
+                        <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 underline">Vérifier ce retour sur SNCF Connect <ExternalLink size={13}/></a>
+                      </div>)}</div>
+                      : <p className="mt-2 text-sm text-slate-600">Aucun retour ne remplit les critères de date, horaire et correspondance pour cette destination.</p>
+                    : <p className="mt-2 text-sm text-slate-600">Active le retour obligatoire et choisis sa date et ses horaires pour afficher les retours compatibles.</p>}
+                  <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
               </article>;
             })}
