@@ -81,38 +81,90 @@ function transferMinimum(previousStation: string, nextStation: string) {
 }
 function escapeOdsql(value: string) { return value.replace(/'/g, "''"); }
 
-async function getAllAvailableTrains(date: string) {
-  const query = "date = date'" + date + "' AND od_happy_card = 'OUI'";
+async function fetchWhere(where: string) {
   const firstUrl = new URL(API_BASE);
-  firstUrl.searchParams.set("where", query);
+  firstUrl.searchParams.set("where", where);
   firstUrl.searchParams.set("limit", String(PAGE_SIZE));
   firstUrl.searchParams.set("offset", "0");
-  firstUrl.searchParams.set("order_by", "heure_depart");
 
-  const firstResponse = await fetch(firstUrl.toString(), { headers: { Accept: "application/json" }, next: { revalidate: 900 } });
-  if (!firstResponse.ok) throw new Error("SNCF HTTP " + firstResponse.status + " lors du chargement des trains MAX.");
+  const firstResponse = await fetch(firstUrl.toString(), {
+    headers: { Accept: "application/json" },
+    next: { revalidate: 900 }
+  });
+  if (!firstResponse.ok) throw new Error("SNCF HTTP " + firstResponse.status + " pour une recherche de segments MAX.");
   const firstData = await firstResponse.json();
   const total = typeof firstData.total_count === "number" ? firstData.total_count : PAGE_SIZE;
-  const pages = Math.min(Math.ceil(total / PAGE_SIZE), Math.ceil(MAX_RECORDS / PAGE_SIZE));
-  const results: TrainRecord[] = Array.isArray(firstData.results) ? firstData.results : [];
+  const pageCount = Math.min(Math.ceil(total / PAGE_SIZE), Math.ceil(MAX_RECORDS / PAGE_SIZE));
+  const records: TrainRecord[] = Array.isArray(firstData.results) ? firstData.results : [];
 
-  for (let batchStart = 1; batchStart < pages; batchStart += 8) {
-    const batchPages = Array.from({ length: Math.min(8, pages - batchStart) }, (_, index) => batchStart + index);
-    const fetched = await Promise.all(batchPages.map(async page => {
-      const pageUrl = new URL(API_BASE);
-      pageUrl.searchParams.set("where", query);
-      pageUrl.searchParams.set("limit", String(PAGE_SIZE));
-      pageUrl.searchParams.set("offset", String(page * PAGE_SIZE));
-      pageUrl.searchParams.set("order_by", "heure_depart");
-      const response = await fetch(pageUrl.toString(), { headers: { Accept: "application/json" }, next: { revalidate: 900 } });
-      if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant la pagination.");
+  for (let batchStart = 1; batchStart < pageCount; batchStart += 8) {
+    const pageNumbers = Array.from({ length: Math.min(8, pageCount - batchStart) }, (_, index) => batchStart + index);
+    const pages = await Promise.all(pageNumbers.map(async page => {
+      const url = new URL(API_BASE);
+      url.searchParams.set("where", where);
+      url.searchParams.set("limit", String(PAGE_SIZE));
+      url.searchParams.set("offset", String(page * PAGE_SIZE));
+      const response = await fetch(url.toString(), {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 900 }
+      });
+      if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant le chargement des pages.");
       const data = await response.json();
       return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
     }));
-    for (const pageRows of fetched) results.push(...pageRows);
+    for (const rows of pages) records.push(...rows);
+  }
+  return { records: records.slice(0, MAX_RECORDS), total, truncated: total > MAX_RECORDS };
+}
+
+async function getRelevantTrains(date: string, roots: string[], direction: "origine" | "destination", maxLegs: number) {
+  const allRecords: TrainRecord[] = [];
+  const queriedStations = new Set<string>();
+  let frontier = Array.from(new Set(roots.filter(Boolean)));
+  let sourceCount = 0;
+  let truncated = false;
+
+  for (let depth = 0; depth < maxLegs && frontier.length && allRecords.length < MAX_RECORDS; depth++) {
+    const stations = frontier.filter(station => {
+      const key = normal(station);
+      if (queriedStations.has(key)) return false;
+      queriedStations.add(key);
+      return true;
+    });
+    frontier = [];
+    if (!stations.length) break;
+
+    // Keep each ODSQL expression compact; each query fetches several reachable stations.
+    const stationBatches: string[][] = [];
+    for (let index = 0; index < stations.length; index += 24) {
+      stationBatches.push(stations.slice(index, index + 24));
+    }
+
+    const batchResults = await Promise.all(stationBatches.map(async batch => {
+      const stationClause = batch.map(station => direction + " = '" + escapeOdsql(station) + "'").join(" OR ");
+      const where = "date = date'" + date + "' AND od_happy_card = 'OUI' AND (" + stationClause + ")";
+      return fetchWhere(where);
+    }));
+
+    for (const batch of batchResults) {
+      allRecords.push(...batch.records);
+      sourceCount += batch.total;
+      truncated = truncated || batch.truncated;
+      for (const record of batch.records) {
+        const nextStation = direction === "origine" ? destinationOf(record) : originOf(record);
+        if (nextStation && !queriedStations.has(normal(nextStation))) frontier.push(nextStation);
+      }
+      if (allRecords.length >= MAX_RECORDS) {
+        truncated = true;
+        break;
+      }
+    }
+    frontier = Array.from(new Map(frontier.map(station => [normal(station), station])).values()).slice(0, 180);
+    if (frontier.length >= 180) truncated = true;
   }
 
-  return { records: results.slice(0, MAX_RECORDS), total, truncated: total > MAX_RECORDS, query };
+  const deduplicated = Array.from(new Map(allRecords.map(record => [trainKey(record), record])).values());
+  return { records: deduplicated.slice(0, MAX_RECORDS), total: sourceCount, truncated: truncated || deduplicated.length > MAX_RECORDS };
 }
 
 function makeJourneys(records: TrainRecord[], origin: string, destination: string | null, options: {
@@ -244,14 +296,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const outboundData = await getAllAvailableTrains(date);
+    const maxLegs = params.get("routeType") === "direct" ? 1 : maxChanges + 1;
+    const outboundData = await getRelevantTrains(date, [origin], "origine", maxLegs);
     let routes = makeJourneys(outboundData.records, origin, destination, {
-      start, end, maxLegs: params.get("routeType") === "direct" ? 1 : maxChanges + 1,
+      start, end, maxLegs,
       minWait, maxWait, indirectOnly
     });
 
     if (returnRequired) {
-      const returnData = await getAllAvailableTrains(returnDate);
+      const returnData = await getRelevantTrains(returnDate, [origin], "destination", maxLegs);
       const returnStartMinutes = returnStart;
       const returnEndMinutes = returnEnd;
       const returnCache = new Map<string, Journey[]>();
@@ -260,7 +313,7 @@ export async function GET(request: NextRequest) {
         let matchingReturns = returnCache.get(destinationKey);
         if (!matchingReturns) {
           matchingReturns = makeJourneys(returnData.records, route.destination, origin, {
-            start: returnStartMinutes, end: returnEndMinutes, maxLegs: params.get("routeType") === "direct" ? 1 : maxChanges + 1,
+            start: returnStartMinutes, end: returnEndMinutes, maxLegs,
             minWait, maxWait, indirectOnly: false
           });
           returnCache.set(destinationKey, matchingReturns);
