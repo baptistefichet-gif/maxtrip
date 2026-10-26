@@ -168,19 +168,27 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
       const batch = selectedStations.slice(index, index + batchSize);
       const stationClause = batch.map(station => direction + " = '" + escapeOdsql(station) + "'").join(" OR ");
       const where = "date = date'" + date + "' AND od_happy_card = 'OUI' AND (" + stationClause + ")";
-      const batchUrl = new URL(API_BASE);
-      batchUrl.searchParams.set("where", where);
-      batchUrl.searchParams.set("limit", String(PAGE_SIZE));
-      batchUrl.searchParams.set("offset", "0");
-
-      const response = await requestSNCF(batchUrl.toString());
-      if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant la recherche d'itinéraires.");
-      const data = await response.json();
-      const rows: TrainRecord[] = Array.isArray(data.results) ? data.results : [];
-      const total = typeof data.total_count === "number" ? data.total_count : rows.length;
+      let rows: TrainRecord[] = [];
+      let total = 0;
+      if (depth === 0) {
+        const rootResult = await fetchWhere(where);
+        rows = rootResult.records;
+        total = rootResult.total;
+        truncated = truncated || rootResult.truncated;
+      } else {
+        const batchUrl = new URL(API_BASE);
+        batchUrl.searchParams.set("where", where);
+        batchUrl.searchParams.set("limit", String(PAGE_SIZE));
+        batchUrl.searchParams.set("offset", "0");
+        const response = await requestSNCF(batchUrl.toString());
+        if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant la recherche d'itinéraires.");
+        const data = await response.json();
+        rows = Array.isArray(data.results) ? data.results : [];
+        total = typeof data.total_count === "number" ? data.total_count : rows.length;
+        if (total > rows.length) truncated = true;
+      }
       sourceCount += total;
       allRecords.push(...rows);
-      if (total > rows.length) truncated = true;
 
       for (const record of rows) {
         const nextStation = direction === "origine" ? destinationOf(record) : originOf(record);
