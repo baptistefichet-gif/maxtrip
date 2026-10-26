@@ -537,7 +537,7 @@ export default function HomePage() {
                 </div>}
               </article>;
             })}
-          </div>
+          </div>}
           {pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => { setCurrentPage(page => Math.max(1, page - 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === 1} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Précédent</button>
             {Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} type="button" aria-current={currentPage === pageNumber ? "page" : undefined} onClick={() => { setCurrentPage(pageNumber); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"min-w-10 rounded-lg border px-3 py-2 text-sm font-semibold " + (currentPage === pageNumber ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{pageNumber}</button>)}
