@@ -11,6 +11,9 @@ const StationMap = dynamic(() => import("@/components/StationMap"), {
 });
 
 type TrainRecord = Record<string, unknown>;
+type Journey = { key: string; origin: string; destination: string; legs: TrainRecord[]; departure: string; arrival: string; departureMinutes: number; arrivalMinutes: number; durationMinutes: number; changes: number; returns: Journey[] };
+type MapJourney = { key: string; points: MapStation[] };
+const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0") + ":00");
 type StationCatalogue = { origins: string[]; destinations: string[] };
 type SearchMode = "explore" | "classic";
 type RouteType = "all" | "direct" | "indirect";
@@ -108,6 +111,12 @@ function matchesCityOrStation(value: string, query: string) {
   return Boolean(station && requested && station.startsWith(requested));
 }
 
+function minutesOfDay(value: string) {
+  const time = formatTime(value);
+  const match = time.match(/^(\d{2}):(\d{2})$/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : -1;
+}
+
 function isWithinHours(value: string, start: string, end: string) {
   const time = formatTime(value);
   return Boolean(time && time >= start && time <= end);
@@ -184,11 +193,13 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [records, setRecords] = useState<TrainRecord[]>([]);
+  const [journeys, setJourneys] = useState<Journey[]>([]);
   const [sourceTotal, setSourceTotal] = useState<number | null>(null);
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
+  const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
@@ -227,16 +238,7 @@ export default function HomePage() {
     return () => { active = false; };
   }, []);
 
-  const filtered = useMemo(() => records.filter(record => {
-    const from = getPlace(record, "origin");
-    const to = getPlace(record, "destination");
-    if (!from || !to || !isAvailable(record)) return false;
-    if (normalizeText(from) !== normalizeText(origin)) return false;
-    if (mode === "classic" && normalizeText(to) !== normalizeText(destination)) return false;
-    if (!isWithinHours(getTime(record, "departure"), outStart, outEnd)) return false;
-    if (returnEnabled && !hasReverseReturn(record, returnRecords, returnStart, returnEnd)) return false;
-    return routeType !== "indirect";
-  }), [records, returnRecords, origin, destination, mode, outStart, outEnd, returnEnabled, returnStart, returnEnd, routeType, maxChanges]);
+  const filtered = useMemo(() => journeys, [journeys]);
 
   const originMapStation = useMemo(() => {
     const city = mapCityName(origin);
@@ -245,8 +247,8 @@ export default function HomePage() {
 
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
-    for (const record of filtered) {
-      const city = mapCityName(getPlace(record, "destination"));
+    for (const journey of filtered) {
+      const city = mapCityName(journey.destination);
       if (!city) continue;
       names.set(city, (names.get(city) || 0) + 1);
     }
@@ -257,69 +259,55 @@ export default function HomePage() {
     }).filter((station): station is MapStation & { count: number } => station !== null);
   }, [filtered]);
 
+  const mapJourneys = useMemo(() => filtered.map(journey => {
+    const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
+    const points = names.map(name => {
+      const city = mapCityName(name);
+      return INITIAL_STATIONS.find(station => station.name === city) ?? null;
+    }).filter((station): station is MapStation => station !== null);
+    return { key: journey.key, points };
+  }).filter(journey => journey.points.length >= 2), [filtered]);
+
+  function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
+    const arrival = minutesOfDay(getTime(previous, "arrival"));
+    const departure = minutesOfDay(getTime(next, "departure"));
+    if (arrival < 0 || departure < 0) return null;
+    return (departure < arrival ? departure + 1440 : departure) - arrival;
+  }
+
   async function searchTrains() {
+    if (!origin) { setError("Choisis une gare de départ dans les suggestions."); return; }
+    if (mode === "classic" && !destination) { setError("Choisis une gare d'arrivée dans les suggestions."); return; }
+    if (returnEnabled && returnDate < outDate) { setError("La date du retour doit être égale ou postérieure à la date de l'aller."); return; }
     setLoading(true);
     setError("");
+    setJourneys([]);
     setRecords([]);
     setReturnRecords([]);
     setSelected(null);
+    setSelectedJourneyKey(null);
     setExpandedTripKey(null);
-
     try {
-      if (routeType === "indirect") {
-        throw new Error("La recherche avec correspondances multiples n'est pas encore disponible. Choisis « Tous » ou « Direct uniquement » pour consulter les trains directs publiés.");
-      }
-
-      async function fetchPages(params: URLSearchParams) {
-        const firstParams = new URLSearchParams(params);
-        firstParams.set("limit", "100");
-        firstParams.set("offset", "0");
-        const firstResponse = await fetch(`/api/trains?${firstParams.toString()}`);
-        const firstData = await firstResponse.json();
-
-        if (!firstResponse.ok) {
-          const status = typeof firstData.upstreamStatus === "number" ? ` (HTTP SNCF ${firstData.upstreamStatus})` : "";
-          const details = typeof firstData.upstreamMessage === "string" && firstData.upstreamMessage
-            ? ` — ${firstData.upstreamMessage}`
-            : "";
-          throw new Error(`${firstData.error || "Recherche indisponible."}${status}${details}`);
-        }
-
-        const firstResults = Array.isArray(firstData.results) ? firstData.results as TrainRecord[] : [];
-        const total = typeof firstData.total_count === "number" ? firstData.total_count : firstResults.length;
-        const pageCount = Math.min(10, Math.ceil(total / 100));
-        const remaining = await Promise.all(Array.from({ length: Math.max(0, pageCount - 1) }, async (_, index) => {
-          const pageParams = new URLSearchParams(params);
-          pageParams.set("limit", "100");
-          pageParams.set("offset", String((index + 1) * 100));
-          const response = await fetch(`/api/trains?${pageParams.toString()}`);
-          const data = await response.json();
-          if (!response.ok) throw new Error(data.error || "Impossible de charger toutes les pages SNCF.");
-          return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
-        }));
-        return { results: firstResults.concat(...remaining), fetchedAt: firstData.fetched_at || new Date().toISOString(), total };
-      }
-
-      const params = new URLSearchParams({ date: outDate, origine: origin });
+      const params = new URLSearchParams({
+        date: outDate, origine: origin, start: outStart, end: outEnd,
+        maxChanges, minWait, maxWait, routeType
+      });
       if (mode === "classic") params.set("destination", destination);
-      const outboundData = await fetchPages(params);
-      setRecords(outboundData.results);
-      setSourceTotal(outboundData.total);
-      setLastFetch(outboundData.fetchedAt);
-
       if (returnEnabled) {
-        const backParams = new URLSearchParams({ date: returnDate });
-        if (mode === "classic") {
-          backParams.set("origine", destination);
-          backParams.set("destination", origin);
-        } else {
-          backParams.set("destination", origin);
-        }
-        const returnData = await fetchPages(backParams);
-        setReturnRecords(returnData.results);
+        params.set("returnRequired", "true");
+        params.set("returnDate", returnDate);
+        params.set("returnStart", returnStart);
+        params.set("returnEnd", returnEnd);
       }
+      const response = await fetch("/api/itineraries?" + params.toString(), { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "La recherche d'itinéraires a échoué.");
+      setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
+      setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
+      setLastFetch(data.fetched_at || new Date().toISOString());
+      if (data.truncated) setError("Attention : le catalogue MAX dépasse la limite chargée ; certains itinéraires peuvent manquer.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
+      setError(err instanceof Error ? err.message : "Une erreur est survenue pendant la recherche.");
     } finally {
       setLoading(false);
     }
