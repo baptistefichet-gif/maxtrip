@@ -35,7 +35,7 @@ async function main() {
     url.searchParams.set("origine", "PARIS (intramuros)");
     url.searchParams.set("start", "08:00");
     url.searchParams.set("end", "23:00");
-    url.searchParams.set("maxChanges", "2");
+    url.searchParams.set("maxChanges", "1");
     url.searchParams.set("minWait", "20");
     url.searchParams.set("maxWait", "90");
     url.searchParams.set("routeType", "all");
