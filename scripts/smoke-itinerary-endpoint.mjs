@@ -37,7 +37,7 @@ async function main() {
     url.searchParams.set("date", "2026-10-29");
     url.searchParams.set("origine", "PARIS (intramuros)");
     url.searchParams.set("start", "08:00");
-    url.searchParams.set("end", "23:00");
+    url.searchParams.set("end", "24:00");
     url.searchParams.set("maxChanges", "1");
     url.searchParams.set("minWait", "20");
     url.searchParams.set("maxWait", "90");
@@ -50,6 +50,14 @@ async function main() {
     try { data = JSON.parse(body); } catch { throw new Error("Itinerary endpoint returned non-JSON: " + body.slice(0, 400)); }
     diagnostic.httpStatus = response.status;
     diagnostic.elapsedMs = Date.now() - requestStarted;
+    const invalidRangeUrl = new URL(base + "/api/itineraries");
+    invalidRangeUrl.searchParams.set("date", "2026-10-29");
+    invalidRangeUrl.searchParams.set("origine", "PARIS (intramuros)");
+    invalidRangeUrl.searchParams.set("start", "08:00");
+    invalidRangeUrl.searchParams.set("end", "07:00");
+    const invalidRangeResponse = await fetch(invalidRangeUrl, { signal: AbortSignal.timeout(10000), cache: "no-store" });
+    if (invalidRangeResponse.status !== 400) throw new Error("An inverted time range must return HTTP 400.");
+    diagnostic.timeBoundaryChecks = { endOfDay24Accepted: response.ok, invertedRangeRejected: invalidRangeResponse.status === 400 };
     diagnostic.payload = data;
     if (!response.ok) throw new Error("Itinerary endpoint returned HTTP " + response.status + ": " + body.slice(0, 500));
     if (!Array.isArray(data.routes)) throw new Error("Itinerary endpoint omitted the routes array.");
