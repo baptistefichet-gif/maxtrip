@@ -216,7 +216,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     const to = destinationOf(record);
     const dep = minutes(departureOf(record));
     const rawArr = minutes(arrivalOf(record));
-    if (!from || !to || dep < 0 || rawArr < 0) continue;
+    if (!from || !to || !available(record) || dep < 0 || rawArr < 0) continue;
     let arr = rawArr;
     if (arr < dep) arr += 1440;
     const fromCity = cityOf(from);
@@ -229,15 +229,14 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
 
   const found: Journey[] = [];
   const routeKeys = new Set<string>();
+  const routeLimit = destination ? 20 : 4;
   let visitedStates = 0;
-  const maxStates = destination ? 12000 : 30000;
-  const routeLimit = destination ? 10 : 3;
+  const maxStates = destination ? 15000 : 30000;
 
   function save(path: TrainRecord[]) {
-    if (!path.length) return;
-    if (options.indirectOnly && path.length < 2) return;
-    const last = path[path.length - 1];
+    if (!path.length || (options.indirectOnly && path.length < 2)) return;
     const first = path[0];
+    const last = path[path.length - 1];
     const finalDestination = destinationOf(last);
     if (destination && normal(finalDestination) !== normal(destination)) return;
     const key = path.map(trainKey).join(" >> ");
@@ -245,6 +244,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     const existingForDestination = found.filter(route => normal(route.destination) === normal(finalDestination)).length;
     if (existingForDestination >= routeLimit || found.length >= MAX_ROUTES) return;
     routeKeys.add(key);
+
     const departureMinutes = Number(first.__depMin);
     let arrivalMinutes = Number(last.__arrMin);
     while (arrivalMinutes < departureMinutes) arrivalMinutes += 1440;
@@ -263,45 +263,66 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     });
   }
 
-  function dfs(current: string, path: TrainRecord[], visitedCities: Set<string>) {
+  function extend(path: TrainRecord[], visitedCities: Set<string>) {
     visitedStates++;
-    if (visitedStates > maxStates || found.length >= MAX_ROUTES) return;
-    const last = path[path.length - 1];
-    if (path.length && (!destination || normal(destinationOf(last)) === normal(destination))) {
-      save(path);
-      if (destination) return;
-    }
-    if (path.length >= options.maxLegs) return;
-    const candidates = adjacency.get(cityOf(current)) ?? [];
+    if (visitedStates > maxStates || found.length >= MAX_ROUTES || path.length >= options.maxLegs) return;
+    const previous = path[path.length - 1];
+    const previousStation = destinationOf(previous);
+    const candidates = adjacency.get(cityOf(previousStation)) ?? [];
     let scanned = 0;
+
     for (const next of candidates) {
-      if (scanned++ >= 80) break;
-      const nextStation = destinationOf(next);
-      const nextCity = cityOf(nextStation);
-      if (path.length === 0 && normal(originOf(next)) !== normal(origin)) continue;
-      if (visitedCities.has(nextCity)) continue;
+      if (scanned++ >= 160) break;
+      const nextOrigin = originOf(next);
+      const nextDestination = destinationOf(next);
+      const nextCity = cityOf(nextDestination);
+      const minTransfer = transferMinimum(previousStation, nextOrigin);
+      if (minTransfer === null || visitedCities.has(nextCity)) continue;
+
       let absoluteDep = Number(next.__depMin);
-      if (path.length === 0) {
-        if (absoluteDep < options.start || absoluteDep > options.end) continue;
-      } else {
-        const previous = path[path.length - 1];
-        const previousArr = Number(previous.__arrMin);
-        while (absoluteDep < previousArr) absoluteDep += 1440;
-        const gap = absoluteDep - previousArr;
-        const minTransfer = transferMinimum(destinationOf(previous), originOf(next));
-        if (minTransfer === null) continue;
-        if (gap < Math.max(options.minWait, minTransfer) || gap > options.maxWait) continue;
-      }
-      const dayShift = absoluteDep - Number(next.__depMin);
-      const adjustedNext = { ...next, __depMin: absoluteDep, __arrMin: Number(next.__arrMin) + dayShift };
+      const previousArrival = Number(previous.__arrMin);
+      while (absoluteDep < previousArrival) absoluteDep += 1440;
+      const wait = absoluteDep - previousArrival;
+      if (wait < Math.max(options.minWait, minTransfer) || wait > options.maxWait) continue;
+
+      const shift = absoluteDep - Number(next.__depMin);
+      const adjusted = { ...next, __depMin: absoluteDep, __arrMin: Number(next.__arrMin) + shift };
+      const nextPath = [...path, adjusted];
+      if (!destination || normal(nextDestination) === normal(destination)) save(nextPath);
+      if (destination && normal(nextDestination) === normal(destination)) continue;
       visitedCities.add(nextCity);
-      dfs(nextStation, [...path, adjustedNext], visitedCities);
+      extend(nextPath, visitedCities);
       visitedCities.delete(nextCity);
       if (visitedStates > maxStates || found.length >= MAX_ROUTES) break;
     }
   }
 
-  dfs(origin, [], new Set([cityOf(origin)]));
+  const firstLegs = records
+    .filter(record => available(record) && normal(originOf(record)) === normal(origin))
+    .map(record => {
+      const dep = minutes(departureOf(record));
+      const arrRaw = minutes(arrivalOf(record));
+      if (dep < 0 || arrRaw < 0) return null;
+      let arr = arrRaw;
+      if (arr < dep) arr += 1440;
+      return { ...record, __depMin: dep, __arrMin: arr };
+    })
+    .filter((record): record is TrainRecord => record !== null)
+    .filter(record => Number(record.__depMin) >= options.start && Number(record.__depMin) <= options.end)
+    .sort((a, b) => Number(a.__depMin) - Number(b.__depMin));
+
+  for (const first of firstLegs) {
+    const firstDestination = destinationOf(first);
+    if (!destination || normal(firstDestination) === normal(destination)) save([first]);
+    if (destination && normal(firstDestination) === normal(destination)) continue;
+    if (options.maxLegs <= 1 || options.indirectOnly === false && !destination && found.length >= MAX_ROUTES) {
+      if (options.maxLegs <= 1) continue;
+    }
+    const visitedCities = new Set<string>([cityOf(origin), cityOf(firstDestination)]);
+    if (options.maxLegs > 1) extend([first], visitedCities);
+    if (found.length >= MAX_ROUTES) break;
+  }
+
   return found.sort((a, b) => a.departureMinutes - b.departureMinutes || a.durationMinutes - b.durationMinutes);
 }
 
