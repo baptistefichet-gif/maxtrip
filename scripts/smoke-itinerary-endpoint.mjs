@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { writeFileSync, mkdirSync } from "node:fs";
 
 const port = 3141;
 const base = "http://127.0.0.1:" + port;
@@ -26,6 +27,7 @@ async function waitForServer() {
 }
 
 async function main() {
+  const diagnostic = { started_at: new Date().toISOString() };
   try {
     await waitForServer();
     const url = new URL(base + "/api/itineraries");
@@ -38,10 +40,14 @@ async function main() {
     url.searchParams.set("maxWait", "90");
     url.searchParams.set("routeType", "all");
 
+    const requestStarted = Date.now();
     const response = await fetch(url, { signal: AbortSignal.timeout(90000), cache: "no-store" });
     const body = await response.text();
     let data;
     try { data = JSON.parse(body); } catch { throw new Error("Itinerary endpoint returned non-JSON: " + body.slice(0, 400)); }
+    diagnostic.httpStatus = response.status;
+    diagnostic.elapsedMs = Date.now() - requestStarted;
+    diagnostic.payload = data;
     if (!response.ok) throw new Error("Itinerary endpoint returned HTTP " + response.status + ": " + body.slice(0, 500));
     if (!Array.isArray(data.routes)) throw new Error("Itinerary endpoint omitted the routes array.");
     if (typeof data.sourceCount !== "number" || typeof data.recordsLoaded !== "number") {
@@ -77,7 +83,13 @@ async function main() {
       } : null
     }, null, 2));
     if (data.routes.length === 0) throw new Error("No route found for Paris on the test date; investigate the graph/data filters.");
+  } catch (error) {
+    diagnostic.error = error instanceof Error ? error.message : String(error);
+    throw error;
   } finally {
+    diagnostic.finished_at = new Date().toISOString();
+    mkdirSync("diagnostics", { recursive: true });
+    writeFileSync("diagnostics/itinerary-probe.json", JSON.stringify(diagnostic, null, 2));
     stop();
   }
 }
