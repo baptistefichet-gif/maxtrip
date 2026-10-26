@@ -261,12 +261,16 @@ export default function HomePage() {
 
   const mapJourneys = useMemo(() => filtered.map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
-    const points = names.map(name => {
+    const mapped = names.map(name => {
       const city = mapCityName(name);
       return INITIAL_STATIONS.find(station => station.name === city) ?? null;
-    }).filter((station): station is MapStation => station !== null);
-    return { key: journey.key, points };
-  }).filter(journey => journey.points.length >= 2), [filtered]);
+    });
+    return {
+      key: journey.key,
+      points: mapped.filter((station): station is MapStation => station !== null),
+      complete: mapped.every((station): station is MapStation => station !== null)
+    };
+  }).filter(journey => journey.complete && journey.points.length >= 2).map(({ key, points }) => ({ key, points })), [filtered]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
