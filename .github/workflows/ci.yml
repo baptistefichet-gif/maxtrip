@@ -35,14 +35,11 @@ jobs:
           exit "$build_status"
       - name: Smoke-test itinerary search against live SNCF data
         run: node scripts/smoke-itinerary-endpoint.mjs
-      - name: Publish probe output to the ci-diagnostics branch
+      - name: Upload build and API diagnostics
         if: always()
-        run: |
-          if [ -f diagnostics/api-probe.json ] || [ -f diagnostics/itinerary-probe.json ] || [ -f diagnostics/build.log ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+users.noreply.github.com"
-            git switch -C ci-diagnostics
-            git add -f diagnostics/*.json diagnostics/*.log diagnostics/*.txt 2>/dev/null || true
-            git commit -m "ci: record latest SNCF and itinerary diagnostics" || true
-            git push --force origin HEAD:refs/heads/ci-diagnostics
-          fi
+        uses: actions/upload-artifact@v4
+        with:
+          name: maxtrip-diagnostics
+          path: diagnostics/
+          if-no-files-found: ignore
+          retention-days: 7
