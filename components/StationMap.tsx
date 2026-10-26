@@ -15,19 +15,31 @@ function FitStations({ stations }: { stations: MapStation[] }) {
   const map = useMap();
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => map.invalidateSize({ pan: false }));
-    const timer = window.setTimeout(() => map.invalidateSize({ pan: false }), 180);
-    if (!stations.length) {
-      map.setView([46.6, 2.4], 5, { animate: false });
-    } else {
+    const fit = () => {
+      map.invalidateSize({ pan: false });
+      if (!stations.length) {
+        map.setView([46.6, 2.4], 5, { animate: false });
+        return;
+      }
       const points = stations.map(station => [station.lat, station.lon] as [number, number]);
-      if (points.length === 1) map.setView(points[0] as LatLngExpression, 6, { animate: false });
-      else map.fitBounds(points, { padding: [32, 32], maxZoom: 6, animate: false });
-    }
+      if (points.length === 1) {
+        map.setView(points[0] as LatLngExpression, 6, { animate: false });
+      } else {
+        map.fitBounds(points, { padding: [34, 34], maxZoom: 6, animate: false });
+      }
+    };
+
+    const frame = window.requestAnimationFrame(fit);
+    const timer = window.setTimeout(fit, 200);
+    const observer = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => map.invalidateSize({ pan: false }))
+      : null;
+    if (observer) observer.observe(map.getContainer());
 
     return () => {
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timer);
+      observer?.disconnect();
     };
   }, [map, stations]);
 
@@ -52,8 +64,8 @@ export default function StationMap({
   const selectedStation = stations.find(station => station.name === selected);
 
   return (
-    <div className="h-full w-full">
-      <MapContainer className="h-full w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
+    <div className="h-full min-h-[360px] w-full">
+      <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

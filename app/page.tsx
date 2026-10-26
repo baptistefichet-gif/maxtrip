@@ -124,6 +124,16 @@ function hasReverseReturn(outbound: TrainRecord, returns: TrainRecord[], start: 
   );
 }
 
+function getTripKey(record: TrainRecord) {
+  return [
+    getField(record, ["train_no", "train_number", "entity"]),
+    getPlace(record, "origin"),
+    getPlace(record, "destination"),
+    getTime(record, "departure"),
+    getTime(record, "arrival")
+  ].join("|");
+}
+
 function mapCityName(stationName: string) {
   const normalized = normalizeText(stationName);
   const aliases: Array<[string, string]> = [
@@ -178,6 +188,7 @@ export default function HomePage() {
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
+  const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
@@ -252,6 +263,7 @@ export default function HomePage() {
     setRecords([]);
     setReturnRecords([]);
     setSelected(null);
+    setExpandedTripKey(null);
 
     try {
       if (routeType === "indirect") {
@@ -447,11 +459,21 @@ export default function HomePage() {
           {lastFetch && <div className="mt-4 grid gap-3">
             {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun résultat ne correspond aux champs actuellement reconnus. Cela peut signifier qu'il faut adapter le mapping aux noms de champs exacts du jeu SNCF. Aucun itinéraire n'est inventé.</div>}
             {displayRecords.map((record, index) => {
-              const from = getPlace(record,"origin");
-              const to = getPlace(record,"destination");
-              const dep = formatTime(getTime(record,"departure"));
-              const arr = formatTime(getTime(record,"arrival"));
-              return <article key={`${from}-${to}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              const from = getPlace(record, "origin");
+              const to = getPlace(record, "destination");
+              const depRaw = getTime(record, "departure");
+              const arrRaw = getTime(record, "arrival");
+              const dep = formatTime(depRaw);
+              const arr = formatTime(arrRaw);
+              const tripKey = getTripKey(record);
+              const isExpanded = expandedTripKey === tripKey;
+              const matchingReturns = returnEnabled ? returnRecords.filter(back =>
+                isAvailable(back) &&
+                normalizeText(getPlace(back, "origin")) === normalizeText(to) &&
+                normalizeText(getPlace(back, "destination")) === normalizeText(from) &&
+                isWithinHours(getTime(back, "departure"), returnStart, returnEnd)
+              ) : [];
+              return <article key={tripKey + "-" + index} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold"><TrainFront size={17} className="text-emerald-700"/>{from} <span className="text-slate-400">→</span> {to}</div>
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">MAX signalé disponible</span>
@@ -462,11 +484,49 @@ export default function HomePage() {
                   <div className="text-right"><div className="text-2xl font-black">{arr}</div><div className="mt-1 text-xs text-slate-500">Arrivée</div></div>
                 </div>
                 <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier et réserver sur SNCF Connect <ExternalLink size={14}/></a>
+                <button type="button" onClick={() => setExpandedTripKey(isExpanded ? null : tripKey)} aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
+                  <span>{returnEnabled ? `Voir les ${matchingReturns.length} retour(s) compatibles` : "Voir les détails du trajet"}</span>
+                  <span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                </button>
+                {isExpanded && <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                  <h3 className="font-bold text-slate-900">Détail de l'aller</h3>
+                  <div className="mt-2 grid grid-cols-2 gap-3 text-sm">
+                    <div><p className="text-xs text-slate-500">Date</p><p className="font-semibold">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR")}</p></div>
+                    <div><p className="text-xs text-slate-500">Horaire</p><p className="font-semibold">{dep} → {arr}</p></div>
+                    <div className="col-span-2"><p className="text-xs text-slate-500">Gares</p><p className="font-semibold">{from} → {to}</p></div>
+                  </div>
+                  <div className="mt-4 border-t border-emerald-100 pt-4">
+                    <h3 className="font-bold text-slate-900">Retours compatibles</h3>
+                    {returnEnabled
+                      ? matchingReturns.length
+                        ? <div className="mt-3 grid gap-2">{matchingReturns.map((back, backIndex) => {
+                            const backFrom = getPlace(back, "origin");
+                            const backTo = getPlace(back, "destination");
+                            const backDep = formatTime(getTime(back, "departure"));
+                            const backArr = formatTime(getTime(back, "arrival"));
+                            const backTrain = getField(back, ["train_no", "train_number"]);
+                            return <div key={getTripKey(back) + "-" + backIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-bold">{backFrom} <span className="text-slate-400">→</span> {backTo}</p>
+                                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">MAX signalé disponible</span>
+                              </div>
+                              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                <span><strong>{backDep}</strong> → <strong>{backArr}</strong></span>
+                                <span className="text-slate-500">{new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</span>
+                                {backTrain && <span className="text-slate-500">Train {backTrain}</span>}
+                              </div>
+                              <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 underline">Vérifier ce retour sur SNCF Connect <ExternalLink size={13}/></a>
+                            </div>;
+                          })}</div>
+                        : <p className="mt-2 text-sm text-slate-600">Aucun retour ne correspond aux gares et à la plage horaire choisies. Essaie une autre heure ou une autre date.</p>
+                      : <p className="mt-2 text-sm text-slate-600">Active « Retour MAX disponible obligatoire » et indique la date et la plage horaire du retour pour afficher ici les retours compatibles avec cet aller.</p>}
+                  </div>
+                </div>}
               </article>;
             })}
           </div>}
 
-          {returnEnabled && lastFetch && <details className="mt-4 rounded-2xl border border-slate-200 bg-white p-4"><summary className="cursor-pointer font-bold">Vérification des retours ({returnRecords.length} enregistrement(s))</summary><p className="mt-2 text-sm text-slate-600">Les retours ont été interrogés séparément ; l'association exacte de chaque destination à ses retours et le filtrage de la plage horaire du retour restent à terminer avant usage voyage.</p></details>}
+
         </section>
 
         <footer className="mt-10 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-500">
