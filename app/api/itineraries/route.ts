@@ -331,7 +331,26 @@ export async function GET(request: NextRequest) {
       }).filter(route => route.returns.length > 0);
     }
 
+    const rootRows = outboundData.records.filter(record => normal(originOf(record)) === normal(origin));
+    const rootAvailableRows = rootRows.filter(record => available(record));
+    const rootInTimeWindow = rootAvailableRows.filter(record => {
+      const departure = minutes(departureOf(record));
+      return departure >= start && departure <= end;
+    });
+
     return NextResponse.json({
+      debug: {
+        rootRowsLoaded: rootRows.length,
+        rootAvailableRows: rootAvailableRows.length,
+        rootInTimeWindow: rootInTimeWindow.length,
+        sampleRoot: rootRows.slice(0, 3).map(record => ({
+          origine: originOf(record),
+          destination: destinationOf(record),
+          heure_depart: departureOf(record),
+          heure_arrivee: arrivalOf(record),
+          od_happy_card: field(record, ["od_happy_card"])
+        }))
+      },
       routes,
       totalRoutes: routes.length,
       sourceCount: outboundData.total,
