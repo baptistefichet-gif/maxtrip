@@ -105,6 +105,25 @@ async function main() {
     try { returnData = JSON.parse(returnBody); } catch { throw new Error("Round-trip endpoint returned non-JSON: " + returnBody.slice(0, 400)); }
     if (!returnResponse.ok) throw new Error("Round-trip endpoint returned HTTP " + returnResponse.status + ": " + returnBody.slice(0, 500));
     if (!Array.isArray(returnData.routes)) throw new Error("Round-trip endpoint omitted routes array.");
+    diagnostic.roundTrip = {
+      httpStatus: returnResponse.status,
+      routeCount: returnData.routes.length,
+      compatibleReturnCount: Array.isArray(returnData.routes)
+        ? returnData.routes.reduce((count, route) => count + (Array.isArray(route.returns) ? route.returns.length : 0), 0)
+        : 0,
+      sample: returnData.routes[0] ? {
+        outbound: returnData.routes[0].origin + " -> " + returnData.routes[0].destination,
+        returnCount: returnData.routes[0].returns?.length ?? 0,
+        returnSample: returnData.routes[0].returns?.[0] ? {
+          origin: returnData.routes[0].returns[0].origin,
+          destination: returnData.routes[0].returns[0].destination,
+          departure: returnData.routes[0].returns[0].departure,
+          arrival: returnData.routes[0].returns[0].arrival,
+          changes: returnData.routes[0].returns[0].changes
+        } : null
+      } : null
+    };
+    if (returnData.routes.length === 0) throw new Error("No outbound itinerary had a compatible return for the tested date and evening window.");
     for (const route of returnData.routes) {
       if (!Array.isArray(route.returns) || route.returns.length === 0) {
         throw new Error("The return-required search returned an itinerary without compatible return legs.");
