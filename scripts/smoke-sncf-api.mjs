@@ -162,9 +162,30 @@ async function main() {
   liveApp.directWithTimezone = directWithTimezoneData.total_count ?? null;
   liveApp.directWithoutTimezone = directNoTimezoneData.total_count ?? null;
 
+  const limitProbes = [];
+  for (const limit of [100, 250, 500, 1000]) {
+    const probeUrl = urlFor(dateLiteral + " AND od_happy_card = 'OUI'", limit);
+    try {
+      const response = await fetch(probeUrl.toString(), { headers: { Accept: "application/json" } });
+      const body = await response.text();
+      let data;
+      try { data = JSON.parse(body); } catch {}
+      limitProbes.push({
+        requestedLimit: limit,
+        httpStatus: response.status,
+        returned: Array.isArray(data?.results) ? data.results.length : null,
+        total_count: typeof data?.total_count === "number" ? data.total_count : null,
+        error: response.ok ? null : body.slice(0, 250)
+      });
+    } catch (error) {
+      limitProbes.push({ requestedLimit: limit, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   const diagnostics = {
     generated_at: new Date().toISOString(),
     target_date: TARGET_DATE,
+    limit_probes: limitProbes,
     live_app: liveApp,
     generic_sample: {
       missingFields,
