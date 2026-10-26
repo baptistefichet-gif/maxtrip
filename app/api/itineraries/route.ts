@@ -32,10 +32,10 @@ const CITY_PREFIXES = [
   "AMIENS", "TARBES", "PAU", "NICE", "TOULON", "PARIS"
 ];
 const CITY_TRANSFER_BASE_MINUTES: Record<string, number> = {
-  "LILLE FLANDRES|LILLE EUROPE": 10,
+  "LILLE EUROPE|LILLE FLANDRES": 10,
   "LYON PART DIEU|LYON PERRACHE": 20,
   "MONTPELLIER SAINT ROCH|MONTPELLIER SUD DE FRANCE": 30,
-  "AIX EN PROVENCE TGV|AIX EN PROVENCE CENTRE": 25
+  "AIX EN PROVENCE CENTRE|AIX EN PROVENCE TGV": 25
 };
 
 function field(record: TrainRecord, names: string[]) {
@@ -138,7 +138,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
   const found: Journey[] = [];
   const routeKeys = new Set<string>();
   let visitedStates = 0;
-  const maxStates = 30000;
+  const maxStates = destination ? 12000 : 30000;
   const routeLimit = destination ? 10 : 3;
 
   function save(path: TrainRecord[]) {
@@ -254,11 +254,17 @@ export async function GET(request: NextRequest) {
       const returnData = await getAllAvailableTrains(returnDate);
       const returnStartMinutes = returnStart;
       const returnEndMinutes = returnEnd;
+      const returnCache = new Map<string, Journey[]>();
       routes = routes.map(route => {
-        const matchingReturns = makeJourneys(returnData.records, route.destination, origin, {
-          start: returnStartMinutes, end: returnEndMinutes, maxLegs: params.get("routeType") === "direct" ? 1 : maxChanges + 1,
-          minWait, maxWait, indirectOnly: false
-        });
+        const destinationKey = normal(route.destination);
+        let matchingReturns = returnCache.get(destinationKey);
+        if (!matchingReturns) {
+          matchingReturns = makeJourneys(returnData.records, route.destination, origin, {
+            start: returnStartMinutes, end: returnEndMinutes, maxLegs: params.get("routeType") === "direct" ? 1 : maxChanges + 1,
+            minWait, maxWait, indirectOnly: false
+          });
+          returnCache.set(destinationKey, matchingReturns);
+        }
         return { ...route, returns: matchingReturns };
       }).filter(route => route.returns.length > 0);
     }
