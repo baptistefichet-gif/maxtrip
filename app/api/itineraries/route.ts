@@ -187,23 +187,22 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
       const nextStation = destinationOf(next);
       const nextCity = cityOf(nextStation);
       if (visitedCities.has(nextCity)) continue;
-      const dep = Number(next.__depMin);
+      let absoluteDep = Number(next.__depMin);
       if (path.length === 0) {
-        if (dep < options.start || dep > options.end) continue;
+        if (absoluteDep < options.start || absoluteDep > options.end) continue;
       } else {
         const previous = path[path.length - 1];
         const previousArr = Number(previous.__arrMin);
-        let absoluteDep = dep;
         while (absoluteDep < previousArr) absoluteDep += 1440;
         const gap = absoluteDep - previousArr;
         const minTransfer = transferMinimum(destinationOf(previous), originOf(next));
         if (minTransfer === null) continue;
         if (gap < Math.max(options.minWait, minTransfer) || gap > options.maxWait) continue;
       }
-      const arr = Number(next.__arrMin);
-      if (path.length && arr < Number(path[path.length - 1].__arrMin)) continue;
+      const dayShift = absoluteDep - Number(next.__depMin);
+      const adjustedNext = { ...next, __depMin: absoluteDep, __arrMin: Number(next.__arrMin) + dayShift };
       visitedCities.add(nextCity);
-      dfs(nextStation, [...path, next], visitedCities);
+      dfs(nextStation, [...path, adjustedNext], visitedCities);
       visitedCities.delete(nextCity);
       if (visitedStates > maxStates || found.length >= MAX_ROUTES) break;
     }
