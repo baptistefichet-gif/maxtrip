@@ -186,6 +186,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
       if (scanned++ >= 80) break;
       const nextStation = destinationOf(next);
       const nextCity = cityOf(nextStation);
+      if (path.length === 0 && normal(originOf(next)) !== normal(origin)) continue;
       if (visitedCities.has(nextCity)) continue;
       let absoluteDep = Number(next.__depMin);
       if (path.length === 0) {
