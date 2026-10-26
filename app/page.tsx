@@ -27,7 +27,38 @@ const INITIAL_STATIONS: MapStation[] = [
   { name: "Rennes", lat: 48.1173, lon: -1.6778 },
   { name: "Montpellier", lat: 43.6119, lon: 3.8772 },
   { name: "Tours", lat: 47.3941, lon: 0.6848 },
-  { name: "Nîmes", lat: 43.8367, lon: 4.3601 }
+  { name: "Nîmes", lat: 43.8367, lon: 4.3601 },
+  { name: "Toulouse", lat: 43.6045, lon: 1.444 },
+  { name: "Nice", lat: 43.7102, lon: 7.262 },
+  { name: "Avignon", lat: 43.9493, lon: 4.8055 },
+  { name: "Valence", lat: 44.9334, lon: 4.8924 },
+  { name: "Grenoble", lat: 45.1885, lon: 5.7245 },
+  { name: "Annecy", lat: 45.8992, lon: 6.1294 },
+  { name: "Chambéry", lat: 45.5646, lon: 5.9178 },
+  { name: "Le Mans", lat: 48.0061, lon: 0.1996 },
+  { name: "Angers", lat: 47.4784, lon: -0.5632 },
+  { name: "Poitiers", lat: 46.5802, lon: 0.3404 },
+  { name: "La Rochelle", lat: 46.1603, lon: -1.1511 },
+  { name: "Limoges", lat: 45.8336, lon: 1.2611 },
+  { name: "Clermont-Ferrand", lat: 45.7772, lon: 3.087 },
+  { name: "Reims", lat: 49.2583, lon: 4.0317 },
+  { name: "Metz", lat: 49.1193, lon: 6.1757 },
+  { name: "Nancy", lat: 48.6921, lon: 6.1844 },
+  { name: "Besançon", lat: 47.2378, lon: 6.0241 },
+  { name: "Mulhouse", lat: 47.7508, lon: 7.3359 },
+  { name: "Perpignan", lat: 42.6887, lon: 2.8948 },
+  { name: "Toulon", lat: 43.1242, lon: 5.928 },
+  { name: "Aix-en-Provence", lat: 43.5297, lon: 5.4474 },
+  { name: "Saint-Étienne", lat: 45.4397, lon: 4.3872 },
+  { name: "Rouen", lat: 49.4432, lon: 1.0993 },
+  { name: "Caen", lat: 49.1829, lon: -0.3707 },
+  { name: "Brest", lat: 48.3904, lon: -4.4861 },
+  { name: "Amiens", lat: 49.8941, lon: 2.2958 },
+  { name: "Orléans", lat: 47.9029, lon: 1.9093 },
+  { name: "Bayonne", lat: 43.4929, lon: -1.4748 },
+  { name: "Pau", lat: 43.2951, lon: -0.3708 },
+  { name: "Tarbes", lat: 43.2328, lon: 0.0781 },
+  { name: "Narbonne", lat: 43.1843, lon: 3.0031 }
 ];
 
 function todayString() {
@@ -95,6 +126,22 @@ function hasReverseReturn(outbound: TrainRecord, returns: TrainRecord[], start: 
 
 function mapCityName(stationName: string) {
   const normalized = normalizeText(stationName);
+  const aliases: Array<[string, string]> = [
+    ["PARIS", "Paris"], ["LYON", "Lyon"], ["LILLE", "Lille"], ["BORDEAUX", "Bordeaux"],
+    ["MARSEILLE", "Marseille"], ["NANTES", "Nantes"], ["STRASBOURG", "Strasbourg"],
+    ["MONTPELLIER", "Montpellier"], ["RENNES", "Rennes"], ["TOULOUSE", "Toulouse"],
+    ["NICE", "Nice"], ["AVIGNON", "Avignon"], ["VALENCE", "Valence"], ["GRENOBLE", "Grenoble"],
+    ["ANNECY", "Annecy"], ["CHAMBERY", "Chambéry"], ["LE MANS", "Le Mans"], ["ANGERS", "Angers"],
+    ["POITIERS", "Poitiers"], ["LA ROCHELLE", "La Rochelle"], ["LIMOGES", "Limoges"],
+    ["CLERMONT", "Clermont-Ferrand"], ["REIMS", "Reims"], ["METZ", "Metz"], ["NANCY", "Nancy"],
+    ["BESANCON", "Besançon"], ["MULHOUSE", "Mulhouse"], ["PERPIGNAN", "Perpignan"], ["TOULON", "Toulon"],
+    ["AIX EN PROVENCE", "Aix-en-Provence"], ["SAINT ETIENNE", "Saint-Étienne"], ["ROUEN", "Rouen"],
+    ["CAEN", "Caen"], ["BREST", "Brest"], ["AMIENS", "Amiens"], ["ORLEANS", "Orléans"],
+    ["BAYONNE", "Bayonne"], ["PAU", "Pau"], ["TARBES", "Tarbes"], ["NARBONNE", "Narbonne"],
+    ["NIMES", "Nîmes"], ["DIJON", "Dijon"], ["TOURS", "Tours"]
+  ];
+  const match = aliases.find(([prefix]) => normalized.startsWith(prefix));
+  if (match) return match[1];
   return INITIAL_STATIONS.find(station => {
     const city = normalizeText(station.name);
     return normalized === city || normalized.startsWith(city + " ");
@@ -107,6 +154,8 @@ export default function HomePage() {
   const [destination, setDestination] = useState("");
   const [originSearch, setOriginSearch] = useState("");
   const [destinationSearch, setDestinationSearch] = useState("");
+  const [originOpen, setOriginOpen] = useState(false);
+  const [destinationOpen, setDestinationOpen] = useState(false);
   const [stations, setStations] = useState<StationCatalogue>({ origins: [], destinations: [] });
   const [stationsLoading, setStationsLoading] = useState(true);
   const [stationsError, setStationsError] = useState("");
@@ -132,17 +181,13 @@ export default function HomePage() {
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
-    const matches = stations.origins.filter(station => normalizeText(station).includes(query));
-    if (origin && !matches.includes(origin)) matches.unshift(origin);
-    return matches;
-  }, [stations.origins, originSearch, origin]);
+    return stations.origins.filter(station => !query || normalizeText(station).includes(query)).slice(0, 8);
+  }, [stations.origins, originSearch]);
 
   const destinationOptions = useMemo(() => {
     const query = normalizeText(destinationSearch);
-    const matches = stations.destinations.filter(station => normalizeText(station).includes(query));
-    if (destination && !matches.includes(destination)) matches.unshift(destination);
-    return matches;
-  }, [stations.destinations, destinationSearch, destination]);
+    return stations.destinations.filter(station => !query || normalizeText(station).includes(query)).slice(0, 8);
+  }, [stations.destinations, destinationSearch]);
 
   useEffect(() => {
     let active = true;
@@ -155,8 +200,12 @@ export default function HomePage() {
         const destinations = Array.isArray(data.destinations) ? data.destinations as string[] : [];
         if (!active) return;
         setStations({ origins, destinations });
-        setOrigin(current => origins.includes(current) ? current : (origins.find(value => normalizeText(value).startsWith("PARIS")) ?? origins[0] ?? ""));
-        setDestination(current => destinations.includes(current) ? current : (destinations.find(value => normalizeText(value).startsWith("LYON")) ?? destinations[0] ?? ""));
+        const initialOrigin = origins.includes(origin) ? origin : (origins.find(value => normalizeText(value).startsWith("PARIS")) ?? origins[0] ?? "");
+        const initialDestination = destinations.includes(destination) ? destination : (destinations.find(value => normalizeText(value).startsWith("LYON")) ?? destinations[0] ?? "");
+        setOrigin(initialOrigin);
+        setOriginSearch("");
+        setDestination(initialDestination);
+        setDestinationSearch("");
       } catch (err) {
         if (active) setStationsError(err instanceof Error ? err.message : "Impossible de charger les gares.");
       } finally {
@@ -177,6 +226,11 @@ export default function HomePage() {
     if (returnEnabled && !hasReverseReturn(record, returnRecords, returnStart, returnEnd)) return false;
     return routeType !== "indirect";
   }), [records, returnRecords, origin, destination, mode, outStart, outEnd, returnEnabled, returnStart, returnEnd, routeType, maxChanges]);
+
+  const originMapStation = useMemo(() => {
+    const city = mapCityName(origin);
+    return INITIAL_STATIONS.find(station => station.name === city) ?? null;
+  }, [origin]);
 
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
@@ -288,23 +342,41 @@ export default function HomePage() {
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-semibold text-slate-700">Gare de départ (liste officielle SNCF)
-                <input type="search" value={originSearch} onChange={e=>setOriginSearch(e.target.value)} placeholder="Filtrer les gares…" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal" aria-label="Filtrer les gares de départ"/>
-                <select value={origin} onChange={e=>{setOrigin(e.target.value);setOriginSearch("");}} disabled={stationsLoading || stations.origins.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
-                  <option value="">{stationsLoading ? "Chargement des gares…" : `Choisir une gare (${stations.origins.length} disponibles)`}</option>
-                  {originOptions.map(station => <option key={station} value={station}>{station}</option>)}
-                </select>
-                <span className="mt-1 block text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue complet…" : `${stations.origins.length} gares d'origine chargées`}</span>
-                {stationsError && <span className="mt-1 block text-xs font-normal text-red-700">{stationsError}</span>}
-              </label>
-              {mode==="classic" && <label className="block text-sm font-semibold text-slate-700">Gare d'arrivée (liste officielle SNCF)
-                <input type="search" value={destinationSearch} onChange={e=>setDestinationSearch(e.target.value)} placeholder="Filtrer les gares…" className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 font-normal" aria-label="Filtrer les gares d'arrivée"/>
-                <select value={destination} onChange={e=>{setDestination(e.target.value);setDestinationSearch("");}} disabled={stationsLoading || stations.destinations.length===0} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600">
-                  <option value="">{stationsLoading ? "Chargement du catalogue complet…" : `Choisir une gare (${stations.destinations.length} disponibles)`}</option>
-                  {destinationOptions.map(station => <option key={station} value={station}>{station}</option>)}
-                </select>
-                <span className="mt-1 block text-xs font-normal text-slate-500">{stations.destinations.length} gares d'arrivée chargées</span>
-              </label>}
+              <div className="relative">
+                <label htmlFor="origin-station" className="block text-sm font-semibold text-slate-700">Gare de départ</label>
+                <input id="origin-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={originOpen && originOptions.length > 0} aria-controls="origin-station-suggestions" autoComplete="off"
+                  value={originSearch || origin}
+                  onFocus={() => { setOriginOpen(true); if (!originSearch && origin) setOriginSearch(origin); }}
+                  onChange={e => { setOriginSearch(e.target.value); setOrigin(""); setOriginOpen(true); }}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") setOriginOpen(false);
+                    if (e.key === "Enter" && originOptions.length) { e.preventDefault(); setOrigin(originOptions[0]); setOriginSearch(""); setOriginOpen(false); }
+                  }}
+                  placeholder={stationsLoading ? "Chargement des gares…" : "Tape une gare ou une ville…"} disabled={stationsLoading || stations.origins.length === 0}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>
+                {originOpen && originSearch && <div id="origin-station-suggestions" role="listbox" className="absolute inset-x-0 top-full z-[1000] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                  {originOptions.length ? originOptions.map(station => <button key={station} type="button" role="option" aria-selected={origin === station} onMouseDown={e => e.preventDefault()} onClick={() => { setOrigin(station); setOriginSearch(""); setOriginOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
+                </div>}
+                <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.origins.length} gares disponibles`}</p>
+                {stationsError && <p className="mt-1 text-xs font-normal text-red-700">{stationsError}</p>}
+              </div>
+              {mode==="classic" && <div className="relative">
+                <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
+                <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" autoComplete="off"
+                  value={destinationSearch || destination}
+                  onFocus={() => { setDestinationOpen(true); if (!destinationSearch && destination) setDestinationSearch(destination); }}
+                  onChange={e => { setDestinationSearch(e.target.value); setDestination(""); setDestinationOpen(true); }}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") setDestinationOpen(false);
+                    if (e.key === "Enter" && destinationOptions.length) { e.preventDefault(); setDestination(destinationOptions[0]); setDestinationSearch(""); setDestinationOpen(false); }
+                  }}
+                  placeholder={stationsLoading ? "Chargement des gares…" : "Tape une gare ou une ville…"} disabled={stationsLoading || stations.destinations.length === 0}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>
+                {destinationOpen && destinationSearch && <div id="destination-station-suggestions" role="listbox" className="absolute inset-x-0 top-full z-[1000] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                  {destinationOptions.length ? destinationOptions.map(station => <button key={station} type="button" role="option" aria-selected={destination === station} onMouseDown={e => e.preventDefault()} onClick={() => { setDestination(station); setDestinationSearch(""); setDestinationOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
+                </div>}
+                <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.destinations.length} gares disponibles`}</p>
+              </div>}
               <label className="block text-sm font-semibold text-slate-700"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
                 <input type="date" value={outDate} onChange={e=>setOutDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
@@ -353,7 +425,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
+              <StationMap stations={destinations} originStation={originMapStation} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
             </div>
             <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-700"/> Liaisons schématiques en lignes droites · carte OpenStreetMap</div>
           </section>
