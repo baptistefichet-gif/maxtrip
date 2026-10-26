@@ -65,6 +65,7 @@ async function main() {
       }
     }
     const connections = data.routes.filter(route => route.changes > 0).length;
+    if (connections === 0) throw new Error("Connection search returned no multi-leg itinerary for the Paris test date.");
     console.log(JSON.stringify({
       pass: true,
       sourceCount: data.sourceCount,
@@ -83,6 +84,51 @@ async function main() {
       } : null
     }, null, 2));
     if (data.routes.length === 0) throw new Error("No route found for Paris on the test date; investigate the graph/data filters.");
+
+    const returnUrl = new URL(base + "/api/itineraries");
+    returnUrl.searchParams.set("date", "2026-10-29");
+    returnUrl.searchParams.set("origine", "PARIS (intramuros)");
+    returnUrl.searchParams.set("start", "08:00");
+    returnUrl.searchParams.set("end", "23:00");
+    returnUrl.searchParams.set("maxChanges", "1");
+    returnUrl.searchParams.set("minWait", "20");
+    returnUrl.searchParams.set("maxWait", "90");
+    returnUrl.searchParams.set("routeType", "all");
+    returnUrl.searchParams.set("returnRequired", "true");
+    returnUrl.searchParams.set("returnDate", "2026-10-30");
+    returnUrl.searchParams.set("returnStart", "18:00");
+    returnUrl.searchParams.set("returnEnd", "23:00");
+
+    const returnResponse = await fetch(returnUrl, { signal: AbortSignal.timeout(90000), cache: "no-store" });
+    const returnBody = await returnResponse.text();
+    let returnData;
+    try { returnData = JSON.parse(returnBody); } catch { throw new Error("Round-trip endpoint returned non-JSON: " + returnBody.slice(0, 400)); }
+    if (!returnResponse.ok) throw new Error("Round-trip endpoint returned HTTP " + returnResponse.status + ": " + returnBody.slice(0, 500));
+    if (!Array.isArray(returnData.routes)) throw new Error("Round-trip endpoint omitted routes array.");
+    for (const route of returnData.routes) {
+      if (!Array.isArray(route.returns) || route.returns.length === 0) {
+        throw new Error("The return-required search returned an itinerary without compatible return legs.");
+      }
+      for (const back of route.returns) {
+        if (back.origin !== route.destination || back.destination !== route.origin) {
+          throw new Error("A returned itinerary does not reverse the outbound endpoints: " + route.origin + " -> " + route.destination + ", return " + back.origin + " -> " + back.destination);
+        }
+        if (!Array.isArray(back.legs) || back.legs.length !== back.changes + 1) {
+          throw new Error("Return itinerary has inconsistent leg count.");
+        }
+        if (!back.legs.every(leg => String(leg.od_happy_card).toUpperCase() === "OUI")) {
+          throw new Error("Return itinerary contains a leg not marked MAX available.");
+        }
+      }
+    }
+
+    console.log(JSON.stringify({
+      returnRequiredSearch: {
+        routeCount: returnData.routes.length,
+        everyRouteHasCompatibleReturn: returnData.routes.every(route => route.returns.length > 0),
+        checkedReturnJourneys: returnData.routes.reduce((total, route) => total + route.returns.length, 0)
+      }
+    }, null, 2));
   } catch (error) {
     diagnostic.error = error instanceof Error ? error.message : String(error);
     throw error;
