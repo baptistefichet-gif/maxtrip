@@ -357,14 +357,14 @@ export async function GET(request: NextRequest) {
   const origin = params.get("origine")?.trim() ?? "";
   const destination = params.get("destination")?.trim() || null;
   const startText = params.get("start") || "08:00";
-  const endText = params.get("end") || "23:00";
+  const endText = params.get("end") || "24:00";
   const maxChanges = Math.max(0, Math.min(3, Number(params.get("maxChanges") || 1)));
   const minWait = Math.max(10, Math.min(180, Number(params.get("minWait") || 20)));
   const maxWait = Math.max(minWait, Math.min(360, Number(params.get("maxWait") || 90)));
   const indirectOnly = params.get("routeType") === "indirect";
   const returnDate = params.get("returnDate")?.trim() ?? "";
   const returnStartText = params.get("returnStart") || "08:00";
-  const returnEndText = params.get("returnEnd") || "23:00";
+  const returnEndText = params.get("returnEnd") || "24:00";
   const returnRequired = params.get("returnRequired") === "true";
   const start = minutes(startText);
   const end = minutes(endText);
@@ -374,7 +374,7 @@ export async function GET(request: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !origin) {
     return NextResponse.json({ error: "Une date et une gare de départ sont obligatoires." }, { status: 400 });
   }
-  if (start < 0 || start >= 1440 || end < 0 || end <= start || returnStart < 0 || returnStart >= 1440 || returnEnd < 0 || returnEnd <= returnStart) {
+  if (start < 0 || start >= 1440 || end <= start || end > 1440 || returnStart < 0 || returnStart >= 1440 || returnEnd <= returnStart || returnEnd > 1440) {
     return NextResponse.json({ error: "La plage horaire doit être valide et se terminer après le début." }, { status: 400 });
   }
   if (returnRequired && (!/^\d{4}-\d{2}-\d{2}$/.test(returnDate) || returnDate < date)) {
@@ -457,7 +457,7 @@ export async function GET(request: NextRequest) {
       totalRoutes: routes.length,
       sourceCount: outboundData.total,
       recordsLoaded: outboundData.records.length,
-      truncated: outboundData.truncated,
+      truncated: outboundData.truncated || routes.length >= MAX_ROUTES,
       returnRequired,
       fetched_at: new Date().toISOString(),
       source: "SNCF Open Data"

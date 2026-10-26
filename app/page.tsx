@@ -34,6 +34,7 @@ function HourSelect({ label, value, onChange, endOfDay = false, minExclusive }: 
           onChange={event => onChange(event.target.value)}
           className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-3 pr-10 font-normal outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         >
+          {endOfDay && <option value="">Sans limite (jusqu’à la fin de la journée)</option>}
           {options.map(hour => <option key={hour} value={hour}>{hour === "24:00" ? "00 h · fin de journée" : hour.slice(0, 2) + " h"}</option>)}
         </select>
         <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"/>
@@ -206,9 +207,9 @@ export default function HomePage() {
   const [returnEnabled, setReturnEnabled] = useState(false);
   const [returnDate, setReturnDate] = useState(todayString());
   const [outStart, setOutStart] = useState("08:00");
-  const [outEnd, setOutEnd] = useState("23:00");
+  const [outEnd, setOutEnd] = useState("");
   const [returnStart, setReturnStart] = useState("08:00");
-  const [returnEnd, setReturnEnd] = useState("23:00");
+  const [returnEnd, setReturnEnd] = useState("");
   const [allowConnections, setAllowConnections] = useState(false);
   const [maxChanges, setMaxChanges] = useState("1");
   const [minWait, setMinWait] = useState("20");
@@ -223,6 +224,7 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
@@ -264,7 +266,34 @@ export default function HomePage() {
     return () => { active = false; };
   }, []);
 
-  const filtered = useMemo(() => journeys, [journeys]);
+  const filtered = useMemo(() => {
+    if (mode !== "explore" || !selectedExploreDestination) return journeys;
+    return journeys.filter(journey => {
+      const label = mapCityName(journey.destination) ?? journey.destination;
+      return normalizeText(label) === normalizeText(selectedExploreDestination);
+    });
+  }, [journeys, mode, selectedExploreDestination]);
+
+  const destinationSummaries = useMemo(() => {
+    const summaries = new Map<string, { label: string; count: number; keys: Set<string> }>();
+    for (const journey of journeys) {
+      const label = mapCityName(journey.destination) ?? journey.destination;
+      const key = normalizeText(label);
+      if (!key) continue;
+      let entry = summaries.get(key);
+      if (!entry) {
+        entry = { label, count: 0, keys: new Set<string>() };
+        summaries.set(key, entry);
+      }
+      if (!entry.keys.has(journey.key)) {
+        entry.keys.add(journey.key);
+        entry.count++;
+      }
+    }
+    return Array.from(summaries.values())
+      .map(({ label, count }) => ({ label, count }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
+  }, [journeys]);
 
   const originMapStation = useMemo(() => {
     const city = mapCityName(origin);
@@ -321,7 +350,7 @@ export default function HomePage() {
     setExpandedTripKey(null);
     try {
       const params = new URLSearchParams({
-        date: outDate, origine: origin, start: outStart, end: outEnd,
+        date: outDate, origine: origin, start: outStart, end: outEnd || "24:00",
         maxChanges, minWait, maxWait, routeType: allowConnections ? "all" : "direct"
       });
       if (mode === "classic") params.set("destination", destination);
@@ -329,12 +358,13 @@ export default function HomePage() {
         params.set("returnRequired", "true");
         params.set("returnDate", returnDate);
         params.set("returnStart", returnStart);
-        params.set("returnEnd", returnEnd);
+        params.set("returnEnd", returnEnd || "24:00");
       }
       const response = await fetch("/api/itineraries?" + params.toString(), { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "La recherche d'itinéraires a échoué.");
       setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
+      setSelectedExploreDestination(null);
       setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
       setLastFetch(data.fetched_at || new Date().toISOString());
       setSearchTruncated(Boolean(data.truncated));
@@ -415,21 +445,21 @@ export default function HomePage() {
                 <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
-                <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (hourValue(value) >= hourValue(outEnd)) setOutEnd(nextHour(value)); }}/>
+                <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (outEnd && hourValue(value) >= hourValue(outEnd)) setOutEnd(nextHour(value)); }}/>
                 <HourSelect label="Départ jusqu’à" value={outEnd} endOfDay minExclusive={outStart} onChange={setOutEnd}/>
               </div>
             </div>
 
             <label className="mt-5 flex items-center gap-3 rounded-2xl border border-slate-200 p-3 text-sm font-semibold">
               <input type="checkbox" checked={returnEnabled} onChange={e=>setReturnEnabled(e.target.checked)} className="h-4 w-4 accent-emerald-700"/>
-              Retour MAX disponible obligatoire
+              Je veux un retour TGV MAX
             </label>
             {returnEnabled && <div className="mt-4 rounded-2xl bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Date du retour
                 <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
               </label>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (hourValue(value) >= hourValue(returnEnd)) setReturnEnd(nextHour(value)); }}/>
+                <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (returnEnd && hourValue(value) >= hourValue(returnEnd)) setReturnEnd(nextHour(value)); }}/>
                 <HourSelect label="Retour jusqu’à" value={returnEnd} endOfDay minExclusive={returnStart} onChange={setReturnEnd}/>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Les retours sont associés à chaque itinéraire selon les gares, la date et la plage horaire sélectionnées.</p>
@@ -440,18 +470,17 @@ export default function HomePage() {
               {loading?"Recherche en cours…":mode==="explore"?"Explorer les destinations":"Rechercher les trains"}
             </button>
 
-            <button onClick={()=>setShowAdvanced(v=>!v)} className="mt-4 flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-600"><SlidersHorizontal size={16}/> {showAdvanced?"Masquer":"Afficher"} les filtres avancés</button>
-            {showAdvanced && <div className="mt-3 rounded-2xl bg-slate-50 p-4">
+            <div className="mt-5 rounded-2xl border border-slate-200 p-3">
               <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
                 <input type="checkbox" checked={allowConnections} onChange={event => setAllowConnections(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700"/>
-                <span><span className="block">Autoriser les trajets avec correspondance</span><span className="mt-1 block font-normal text-slate-500">Cette option s’applique à l’aller et au retour. Les trajets directs restent également proposés.</span></span>
+                <span><span className="block">Autoriser les trajets avec correspondance</span><span className="mt-1 block font-normal text-slate-500">Les trajets directs restent proposés. Cette option s’applique à l’aller et au retour.</span></span>
               </label>
               {allowConnections && <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-3">
                 <label className="text-sm font-semibold text-slate-700">Correspondances max.<select value={maxChanges} onChange={e=>setMaxChanges(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
                 <label className="text-sm font-semibold text-slate-700">Attente minimum (min)<input type="number" min="10" max="180" step="5" value={minWait} onChange={e=>setMinWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
                 <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
               </div>}
-            </div>}
+            </div>
           </section>
 
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
@@ -460,11 +489,29 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="classic")setDestination(name)}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="explore"){setSelectedExploreDestination(name);setCurrentPage(1)}else{setDestination(name)}}}/>
             </div>
             <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-700"/> Liaisons schématiques en lignes droites · carte OpenStreetMap</div>
           </section>
         </div>
+
+        {mode === "explore" && journeys.length > 0 && <section aria-label="Destinations possibles" className="mt-6 rounded-3xl bg-white p-4 shadow-soft sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black">Destinations possibles depuis {origin}</h2>
+              <p className="mt-1 text-sm text-slate-500">Nombre de trajets distincts construits avec les critères choisis.</p>
+            </div>
+            {selectedExploreDestination && <button type="button" onClick={() => { setSelectedExploreDestination(null); setCurrentPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Toutes les destinations</button>}
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {destinationSummaries.map(item => <button key={item.label} type="button" onClick={() => { setSelectedExploreDestination(selectedExploreDestination === item.label ? null : item.label); setSelected(item.label); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }}
+              aria-pressed={selectedExploreDestination === item.label}
+              className={"rounded-2xl border p-4 text-left transition " + (selectedExploreDestination === item.label ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50")}>
+              <span className="flex items-center justify-between gap-3"><span className="font-bold">{item.label}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold">{item.count}</span></span>
+              <span className="mt-2 block text-sm font-semibold text-emerald-800">Voir les trajets <span aria-hidden="true">→</span></span>
+            </button>)}
+          </div>
+        </section>}
 
         <section id="search-results" className="mt-6 scroll-mt-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -474,7 +521,7 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && !error && <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mt-0.5 shrink-0"/>Les disponibilités proviennent du jeu de données SNCF Open Data, mis à jour quotidiennement. Elles ne garantissent pas qu'une place soit encore réservable : vérifie les détails sur SNCF Connect avant de partir.</div>}
-          {lastFetch && <p className="mt-2 text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.</p>}
+          {lastFetch && <p className="mt-2 text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>}
           {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche a atteint une limite de chargement des données SNCF : certains itinéraires peuvent manquer. Utilise la pagination pour parcourir les résultats disponibles.</div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les correspondances sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
