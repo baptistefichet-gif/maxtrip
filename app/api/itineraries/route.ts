@@ -136,6 +136,9 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
   let sourceCount = 0;
   let truncated = false;
 
+  // Load every page only for the selected starting point. For connection levels,
+  // load a bounded first page from a small set of likely transfer stations so the
+  // serverless function does not spend its whole runtime paging through the dataset.
   for (let depth = 0; depth < maxLegs && frontier.length && allRecords.length < MAX_RECORDS; depth++) {
     const stations = frontier.filter(station => {
       const key = normal(station);
@@ -146,20 +149,40 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
     frontier = [];
     if (!stations.length) break;
 
-    // Keep each ODSQL expression compact; each query fetches several reachable stations.
-    const stationBatches: string[][] = [];
-    for (let index = 0; index < stations.length; index += 24) {
-      stationBatches.push(stations.slice(index, index + 24));
-    }
+    const priority = ["LYON (intramuros)", "DIJON VILLE", "LILLE EUROPE", "BORDEAUX ST JEAN",
+      "MARSEILLE ST CHARLES", "NANTES", "RENNES", "STRASBOURG", "MONTPELLIER SAINT ROCH",
+      "TOURS", "AVIGNON TGV", "VALENCE TGV", "LE MANS", "ANGERS SAINT LAUD"];
+    stations.sort((a, b) => {
+      const ai = priority.findIndex(value => normal(a).startsWith(normal(value)));
+      const bi = priority.findIndex(value => normal(b).startsWith(normal(value)));
+      return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b, "fr");
+    });
 
-    for (const batch of stationBatches) {
+    const stationLimit = depth === 0 ? 1 : (depth === 1 ? 16 : 8);
+    const selectedStations = depth === 0 ? stations : stations.slice(0, stationLimit);
+    if (stations.length > selectedStations.length) truncated = true;
+
+    // Use smaller ODSQL OR-groups at connection levels to keep individual payloads bounded.
+    const batchSize = depth === 0 ? 1 : 4;
+    for (let index = 0; index < selectedStations.length; index += batchSize) {
+      const batch = selectedStations.slice(index, index + batchSize);
       const stationClause = batch.map(station => direction + " = '" + escapeOdsql(station) + "'").join(" OR ");
       const where = "date = date'" + date + "' AND od_happy_card = 'OUI' AND (" + stationClause + ")";
-      const batchResult = await fetchWhere(where);
-      allRecords.push(...batchResult.records);
-      sourceCount += batchResult.total;
-      truncated = truncated || batchResult.truncated;
-      for (const record of batchResult.records) {
+      const batchUrl = new URL(API_BASE);
+      batchUrl.searchParams.set("where", where);
+      batchUrl.searchParams.set("limit", String(PAGE_SIZE));
+      batchUrl.searchParams.set("offset", "0");
+
+      const response = await requestSNCF(batchUrl.toString());
+      if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant la recherche d'itinéraires.");
+      const data = await response.json();
+      const rows: TrainRecord[] = Array.isArray(data.results) ? data.results : [];
+      const total = typeof data.total_count === "number" ? data.total_count : rows.length;
+      sourceCount += total;
+      allRecords.push(...rows);
+      if (total > rows.length) truncated = true;
+
+      for (const record of rows) {
         const nextStation = direction === "origine" ? destinationOf(record) : originOf(record);
         if (nextStation && !queriedStations.has(normal(nextStation))) frontier.push(nextStation);
       }
@@ -168,8 +191,8 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
         break;
       }
     }
-    frontier = Array.from(new Map(frontier.map(station => [normal(station), station])).values()).slice(0, 180);
-    if (frontier.length >= 180) truncated = true;
+
+    frontier = Array.from(new Map(frontier.map(station => [normal(station), station])).values());
   }
 
   const deduplicated = Array.from(new Map(allRecords.map(record => [trainKey(record), record])).values());
@@ -332,6 +355,7 @@ export async function GET(request: NextRequest) {
     }
 
     const rootRows = outboundData.records.filter(record => normal(originOf(record)) === normal(origin));
+    const directRouteCount = makeJourneys(rootRows, origin, destination, { start, end, maxLegs: 1, minWait, maxWait, indirectOnly: false }).length;
     const rootAvailableRows = rootRows.filter(record => available(record));
     const rootInTimeWindow = rootAvailableRows.filter(record => {
       const departure = minutes(departureOf(record));
@@ -340,6 +364,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       debug: {
+        directRouteCount,
         rootRowsLoaded: rootRows.length,
         rootAvailableRows: rootAvailableRows.length,
         rootInTimeWindow: rootInTimeWindow.length,
