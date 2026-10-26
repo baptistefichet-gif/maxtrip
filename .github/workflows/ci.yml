@@ -42,7 +42,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+users.noreply.github.com"
             git switch -c ci-diagnostics
-            git add diagnostics/api-probe.json diagnostics/itinerary-probe.json diagnostics/build.log diagnostics/build-exit-code.txt 2>/dev/null || true
+            git add -f diagnostics/api-probe.json diagnostics/itinerary-probe.json diagnostics/build.log diagnostics/build-exit-code.txt 2>/dev/null || true
             git commit -m "ci: record latest SNCF and itinerary diagnostics" || true
             git push --force origin HEAD:refs/heads/ci-diagnostics
           fi
