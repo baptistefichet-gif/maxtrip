@@ -14,11 +14,16 @@ type TrainRecord = Record<string, unknown>;
 type Journey = { key: string; origin: string; destination: string; legs: TrainRecord[]; departure: string; arrival: string; departureMinutes: number; arrivalMinutes: number; durationMinutes: number; changes: number; returns: Journey[] };
 type MapJourney = { key: string; points: MapStation[] };
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0") + ":00");
+const END_HOURS = [...HOURS.slice(1), "24:00"];
+const RESULT_PAGE_SIZE = 12;
+function hourValue(value: string) { return value === "24:00" ? 1440 : Number(value.slice(0, 2)) * 60; }
+function nextHour(value: string) { const next = Math.min(1440, hourValue(value) + 60); return next === 1440 ? "24:00" : String(Math.floor(next / 60)).padStart(2, "0") + ":00"; }
 type StationCatalogue = { origins: string[]; destinations: string[] };
 type SearchMode = "explore" | "classic";
 type RouteType = "all" | "direct" | "indirect";
 
-function HourSelect({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function HourSelect({ label, value, onChange, endOfDay = false, minExclusive }: { label: string; value: string; onChange: (value: string) => void; endOfDay?: boolean; minExclusive?: string }) {
+  const options = (endOfDay ? END_HOURS : HOURS).filter(hour => minExclusive === undefined || hourValue(hour) > hourValue(minExclusive));
   return (
     <label className="block min-w-0 text-sm font-semibold text-slate-700">
       <span>{label}</span>
@@ -29,7 +34,7 @@ function HourSelect({ label, value, onChange }: { label: string; value: string; 
           onChange={event => onChange(event.target.value)}
           className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-3 pr-10 font-normal outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         >
-          {HOURS.map(hour => <option key={hour} value={hour}>{hour.slice(0, 2)} h</option>)}
+          {options.map(hour => <option key={hour} value={hour}>{hour === "24:00" ? "00 h · fin de journée" : hour.slice(0, 2) + " h"}</option>)}
         </select>
         <ChevronDown aria-hidden="true" size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"/>
       </span>
@@ -204,7 +209,7 @@ export default function HomePage() {
   const [outEnd, setOutEnd] = useState("23:00");
   const [returnStart, setReturnStart] = useState("08:00");
   const [returnEnd, setReturnEnd] = useState("23:00");
-  const [routeType, setRouteType] = useState<RouteType>("all");
+  const [allowConnections, setAllowConnections] = useState(false);
   const [maxChanges, setMaxChanges] = useState("1");
   const [minWait, setMinWait] = useState("20");
   const [maxWait, setMaxWait] = useState("90");
@@ -214,6 +219,8 @@ export default function HomePage() {
   const [records, setRecords] = useState<TrainRecord[]>([]);
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [sourceTotal, setSourceTotal] = useState<number | null>(null);
+  const [searchTruncated, setSearchTruncated] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -286,7 +293,10 @@ export default function HomePage() {
     }).filter((station): station is MapStation => station !== null);
     const points = mapped.filter((station, index) => index === 0 || station.name !== mapped[index - 1]?.name);
     return { key: journey.key, points };
-  }).filter(journey => journey.points.length >= 2), [filtered]);
+  }).filter(journey => journey.points.length >= 2).map(({ key, points }, index) => {
+    const journey = filtered.find(item => item.key === key);
+    return { key, points, changes: journey?.changes ?? 0 };
+  }), [filtered]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -303,6 +313,8 @@ export default function HomePage() {
     setError("");
     setJourneys([]);
     setRecords([]);
+    setCurrentPage(1);
+    setSearchTruncated(false);
     setReturnRecords([]);
     setSelected(null);
     setSelectedJourneyKey(null);
@@ -310,7 +322,7 @@ export default function HomePage() {
     try {
       const params = new URLSearchParams({
         date: outDate, origine: origin, start: outStart, end: outEnd,
-        maxChanges, minWait, maxWait, routeType
+        maxChanges, minWait, maxWait, routeType: allowConnections ? "all" : "direct"
       });
       if (mode === "classic") params.set("destination", destination);
       if (returnEnabled) {
@@ -325,7 +337,7 @@ export default function HomePage() {
       setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
       setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
       setLastFetch(data.fetched_at || new Date().toISOString());
-      if (data.truncated) setError("Attention : le catalogue MAX dépasse la limite chargée ; certains itinéraires peuvent manquer.");
+      setSearchTruncated(Boolean(data.truncated));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue pendant la recherche.");
     } finally {
@@ -333,7 +345,9 @@ export default function HomePage() {
     }
   }
 
-  const displayRecords = useMemo(() => filtered, [filtered]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / RESULT_PAGE_SIZE));
+  const pagedRecords = useMemo(() => filtered.slice((currentPage - 1) * RESULT_PAGE_SIZE, currentPage * RESULT_PAGE_SIZE), [filtered, currentPage]);
+  const displayRecords = useMemo(() => pagedRecords, [pagedRecords]);
 
   return (
     <main className="min-h-screen bg-paper pb-12">
@@ -397,12 +411,12 @@ export default function HomePage() {
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.destinations.length} gares disponibles`}</p>
               </div>}
-              <label className="block text-sm font-semibold text-slate-700"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
+              <label className="block text-sm font-semibold text-slate-700 sm:col-span-2"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
                 <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
-              <div className="grid grid-cols-2 gap-2">
-                <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (value > outEnd) setOutEnd(value); }}/>
-                <HourSelect label="Départ jusqu’à" value={outEnd} onChange={value => { setOutEnd(value); if (value < outStart) setOutStart(value); }}/>
+              <div className="grid grid-cols-2 gap-3 sm:col-span-2">
+                <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (hourValue(value) >= hourValue(outEnd)) setOutEnd(nextHour(value)); }}/>
+                <HourSelect label="Départ jusqu’à" value={outEnd} endOfDay minExclusive={outStart} onChange={setOutEnd}/>
               </div>
             </div>
 
@@ -415,8 +429,8 @@ export default function HomePage() {
                 <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
               </label>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (value > returnEnd) setReturnEnd(value); }}/>
-                <HourSelect label="Retour jusqu’à" value={returnEnd} onChange={value => { setReturnEnd(value); if (value < returnStart) setReturnStart(value); }}/>
+                <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (hourValue(value) >= hourValue(returnEnd)) setReturnEnd(nextHour(value)); }}/>
+                <HourSelect label="Retour jusqu’à" value={returnEnd} endOfDay minExclusive={returnStart} onChange={setReturnEnd}/>
               </div>
               <p className="mt-2 text-xs leading-5 text-slate-500">Les retours sont associés à chaque itinéraire selon les gares, la date et la plage horaire sélectionnées.</p>
             </div>}
@@ -427,11 +441,16 @@ export default function HomePage() {
             </button>
 
             <button onClick={()=>setShowAdvanced(v=>!v)} className="mt-4 flex w-full items-center justify-center gap-2 py-2 text-sm font-semibold text-slate-600"><SlidersHorizontal size={16}/> {showAdvanced?"Masquer":"Afficher"} les filtres avancés</button>
-            {showAdvanced && <div className="mt-3 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
-              <label className="text-sm font-semibold text-slate-700">Type de trajet<select value={routeType} onChange={e=>setRouteType(e.target.value as RouteType)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="all">Directs et avec correspondance</option><option value="direct">Direct uniquement</option><option value="indirect">Avec correspondance uniquement</option></select></label>
-              <label className="text-sm font-semibold text-slate-700">Correspondances max.<select value={maxChanges} onChange={e=>setMaxChanges(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
-              <label className="text-sm font-semibold text-slate-700">Attente minimum (min)<input type="number" min="10" max="120" step="5" value={minWait} onChange={e=>setMinWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
-              <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
+            {showAdvanced && <div className="mt-3 rounded-2xl bg-slate-50 p-4">
+              <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
+                <input type="checkbox" checked={allowConnections} onChange={event => setAllowConnections(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700"/>
+                <span><span className="block">Autoriser les trajets avec correspondance</span><span className="mt-1 block font-normal text-slate-500">Cette option s’applique à l’aller et au retour. Les trajets directs restent également proposés.</span></span>
+              </label>
+              {allowConnections && <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-3">
+                <label className="text-sm font-semibold text-slate-700">Correspondances max.<select value={maxChanges} onChange={e=>setMaxChanges(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
+                <label className="text-sm font-semibold text-slate-700">Attente minimum (min)<input type="number" min="10" max="180" step="5" value={minWait} onChange={e=>setMinWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
+                <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
+              </div>}
             </div>}
           </section>
 
@@ -447,7 +466,7 @@ export default function HomePage() {
           </section>
         </div>
 
-        <section className="mt-6">
+        <section id="search-results" className="mt-6 scroll-mt-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><h2 className="text-xl font-black">Résultats de recherche</h2><p className="mt-1 text-sm text-slate-500">{lastFetch? `Dernière réponse API : ${new Date(lastFetch).toLocaleString("fr-FR")}` : "Lance une recherche pour récupérer les données publiées."}</p></div>
             {lastFetch && <button onClick={searchTrains} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold"><RefreshCw size={15}/> Actualiser</button>}
@@ -470,13 +489,15 @@ export default function HomePage() {
               const tripKey = journey.key;
               const isExpanded = expandedTripKey === tripKey;
               const matchingReturns = journey.returns ?? [];
+              const journeyDateLabel = new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
               const finalCity = mapCityName(to);
               return <article key={tripKey + "-" + index} className={"rounded-2xl border bg-white p-4 shadow-sm sm:p-5 " + (selectedJourneyKey === tripKey ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold"><TrainFront size={17} className="text-emerald-700"/>{from} <span className="text-slate-400">→</span> {to}</div>
                   <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">{journey.changes === 0 ? "Direct" : journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
                 </div>
-                <div className="mt-4 grid grid-cols-3 items-center gap-2">
+                <p className="mt-2 text-xs font-medium text-slate-500"><CalendarDays size={13} className="mr-1 inline-block"/>{journeyDateLabel}</p>
+                <div className="mt-3 grid grid-cols-3 items-center gap-2">
                   <div><div className="text-2xl font-black">{dep}</div><div className="mt-1 text-xs text-slate-500">Départ</div></div>
                   <div className="text-center text-xs text-slate-500"><div className="mx-auto mb-2 h-px bg-slate-200"/><Clock3 size={15} className="mx-auto mb-1"/>{Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</div>
                   <div className="text-right"><div className="text-2xl font-black">{arr}</div><div className="mt-1 text-xs text-slate-500">Arrivée</div></div>
@@ -487,7 +508,7 @@ export default function HomePage() {
                 })}</div>}
                 <button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
                   aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
-                  <span>{returnEnabled ? "Voir " + matchingReturns.length + " retour(s) compatible(s)" : "Voir le détail des segments"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                  <span>{returnEnabled ? "Voir " + matchingReturns.length + " retour(s) compatible(s)" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
                 {isExpanded && <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
@@ -517,7 +538,13 @@ export default function HomePage() {
                 </div>}
               </article>;
             })}
-          </div>}
+          </div>
+          {pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <button type="button" onClick={() => { setCurrentPage(page => Math.max(1, page - 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === 1} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Précédent</button>
+            {Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} type="button" aria-current={currentPage === pageNumber ? "page" : undefined} onClick={() => { setCurrentPage(pageNumber); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"min-w-10 rounded-lg border px-3 py-2 text-sm font-semibold " + (currentPage === pageNumber ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{pageNumber}</button>)}
+            <button type="button" onClick={() => { setCurrentPage(page => Math.min(pageCount, page + 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === pageCount} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Suivant</button>
+          </nav>}
+          <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>
 
 
         </section>

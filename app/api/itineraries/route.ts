@@ -58,9 +58,12 @@ function cityOf(station: string) {
   return CITY_PREFIXES.find(prefix => value === prefix || value.startsWith(prefix + " ")) ?? value;
 }
 function minutes(value: string) {
-  const match = value.match(/(\d{1,2})[:hH](\d{2})|^(\d{1,2})$/);
+  const match = value.match(/^(\d{1,2})[:hH](\d{2})$|^(\d{1,2})$/);
   if (!match) return -1;
-  return Number(match[1] ?? match[3]) * 60 + Number(match[2] ?? 0);
+  const hour = Number(match[1] ?? match[3]);
+  const minute = Number(match[2] ?? 0);
+  if (hour > 24 || minute > 59 || (hour === 24 && minute !== 0)) return -1;
+  return hour * 60 + minute;
 }
 function timeText(value: number) {
   const normalized = ((value % 1440) + 1440) % 1440;
@@ -371,7 +374,7 @@ export async function GET(request: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !origin) {
     return NextResponse.json({ error: "Une date et une gare de départ sont obligatoires." }, { status: 400 });
   }
-  if (start < 0 || end < start || returnStart < 0 || returnEnd < returnStart) {
+  if (start < 0 || start >= 1440 || end < 0 || end <= start || returnStart < 0 || returnStart >= 1440 || returnEnd < 0 || returnEnd <= returnStart) {
     return NextResponse.json({ error: "La plage horaire doit être valide et se terminer après le début." }, { status: 400 });
   }
   if (returnRequired && (!/^\d{4}-\d{2}-\d{2}$/.test(returnDate) || returnDate < date)) {
