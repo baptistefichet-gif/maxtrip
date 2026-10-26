@@ -81,16 +81,31 @@ function transferMinimum(previousStation: string, nextStation: string) {
 }
 function escapeOdsql(value: string) { return value.replace(/'/g, "''"); }
 
+async function requestSNCF(url: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: "application/json" },
+        next: { revalidate: 900 }
+      });
+      if (response.ok || (response.status < 500 && response.status !== 429)) return response;
+      lastError = new Error("SNCF HTTP " + response.status);
+    } catch (error) {
+      lastError = error;
+    }
+    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  throw lastError instanceof Error ? lastError : new Error("Échec réseau vers l'API SNCF.");
+}
+
 async function fetchWhere(where: string) {
   const firstUrl = new URL(API_BASE);
   firstUrl.searchParams.set("where", where);
   firstUrl.searchParams.set("limit", String(PAGE_SIZE));
   firstUrl.searchParams.set("offset", "0");
 
-  const firstResponse = await fetch(firstUrl.toString(), {
-    headers: { Accept: "application/json" },
-    next: { revalidate: 900 }
-  });
+  const firstResponse = await requestSNCF(firstUrl.toString());
   if (!firstResponse.ok) throw new Error("SNCF HTTP " + firstResponse.status + " pour une recherche de segments MAX.");
   const firstData = await firstResponse.json();
   const total = typeof firstData.total_count === "number" ? firstData.total_count : PAGE_SIZE;
@@ -104,10 +119,7 @@ async function fetchWhere(where: string) {
       url.searchParams.set("where", where);
       url.searchParams.set("limit", String(PAGE_SIZE));
       url.searchParams.set("offset", String(page * PAGE_SIZE));
-      const response = await fetch(url.toString(), {
-        headers: { Accept: "application/json" },
-        next: { revalidate: 900 }
-      });
+      const response = await requestSNCF(url.toString());
       if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant le chargement des pages.");
       const data = await response.json();
       return Array.isArray(data.results) ? data.results as TrainRecord[] : [];
@@ -140,17 +152,14 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
       stationBatches.push(stations.slice(index, index + 24));
     }
 
-    const batchResults = await Promise.all(stationBatches.map(async batch => {
+    for (const batch of stationBatches) {
       const stationClause = batch.map(station => direction + " = '" + escapeOdsql(station) + "'").join(" OR ");
       const where = "date = date'" + date + "' AND od_happy_card = 'OUI' AND (" + stationClause + ")";
-      return fetchWhere(where);
-    }));
-
-    for (const batch of batchResults) {
-      allRecords.push(...batch.records);
-      sourceCount += batch.total;
-      truncated = truncated || batch.truncated;
-      for (const record of batch.records) {
+      const batchResult = await fetchWhere(where);
+      allRecords.push(...batchResult.records);
+      sourceCount += batchResult.total;
+      truncated = truncated || batchResult.truncated;
+      for (const record of batchResult.records) {
         const nextStation = direction === "origine" ? destinationOf(record) : originOf(record);
         if (nextStation && !queriedStations.has(normal(nextStation))) frontier.push(nextStation);
       }
