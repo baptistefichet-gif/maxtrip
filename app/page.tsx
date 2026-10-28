@@ -138,7 +138,8 @@ function stationDisplayName(value: string) {
   const normalized = normalizeText(value).replace(/[-_]/g, " ");
   if (/^PARIS\s*\(INTRAMUROS\)$/.test(normalized)) return "Paris (intramuros) — toutes les gares regroupées par la SNCF";
   if (/^LYON\s*\(INTRAMUROS\)$/.test(normalized)) return "Lyon (intramuros) — toutes les gares regroupées par la SNCF";
-  const city = normalized.startsWith("PARIS ") ? "Paris" : normalized.startsWith("LYON ") ? "Lyon" : "";
+  const cities = ["Paris", "Lyon", "Marseille", "Lille", "Bordeaux", "Toulouse", "Nantes", "Strasbourg", "Montpellier", "Rennes", "Nice"];
+  const city = cities.find(name => normalized.startsWith(name.toLocaleUpperCase("fr-FR") + " ")) ?? "";
   if (!city) return value;
   const suffix = value.slice(city.length).trim().replace(/^[-–\s]+/, "");
   if (!suffix || suffix.toLocaleUpperCase("fr-FR").includes("INTRAMUROS")) return value;
@@ -474,8 +475,8 @@ export default function HomePage() {
               <div className="relative">
                 <label htmlFor="origin-station" className="block text-sm font-semibold text-slate-700">Gare de départ</label>
                 <input id="origin-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={originOpen && originOptions.length > 0} aria-controls="origin-station-suggestions" autoComplete="off"
-                  value={originSearch || origin}
-                  onFocus={() => { setOriginOpen(true); if (!originSearch && origin) setOriginSearch(origin); }}
+                  value={originSearch || (origin ? stationDisplayName(origin) : "")}
+                  onFocus={() => { setOriginOpen(true); if (!originSearch && origin) setOriginSearch(stationDisplayName(origin)); }}
                   onChange={e => { setOriginSearch(e.target.value); setOrigin(""); setOriginOpen(true); }}
                   onKeyDown={e => {
                     if (e.key === "Escape") setOriginOpen(false);
@@ -492,8 +493,8 @@ export default function HomePage() {
               {mode==="classic" && <div className="relative">
                 <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
                 <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" autoComplete="off"
-                  value={destinationSearch || destination}
-                  onFocus={() => { setDestinationOpen(true); if (!destinationSearch && destination) setDestinationSearch(destination); }}
+                  value={destinationSearch || (destination ? stationDisplayName(destination) : "")}
+                  onFocus={() => { setDestinationOpen(true); if (!destinationSearch && destination) setDestinationSearch(stationDisplayName(destination)); }}
                   onChange={e => { setDestinationSearch(e.target.value); setDestination(""); setDestinationOpen(true); }}
                   onKeyDown={e => {
                     if (e.key === "Escape") setDestinationOpen(false);
