@@ -504,8 +504,8 @@ export default function HomePage() {
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.destinations.length} gares disponibles`}</p>
               </div>}
-              <label className="block text-sm font-semibold text-slate-700 sm:col-span-2"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
-                <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
+              <label className="block min-w-0 text-sm font-semibold text-slate-700 sm:col-span-2"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
+                <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="mt-2 block min-w-0 max-w-full w-full rounded-xl border border-slate-200 px-3 py-3 font-normal"/>
               </label>
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (outEnd && hourValue(value) >= hourValue(outEnd)) setOutEnd(nextHour(value)); }}/>
@@ -518,8 +518,8 @@ export default function HomePage() {
               Je veux un retour TGV MAX
             </label>
             {returnEnabled && <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-              <label className="block text-sm font-semibold text-slate-700">Date du retour
-                <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
+              <label className="block min-w-0 text-sm font-semibold text-slate-700">Date du retour
+                <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="mt-2 block min-w-0 max-w-full w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal"/>
               </label>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (returnEnd && hourValue(value) >= hourValue(returnEnd)) setReturnEnd(nextHour(value)); }}/>
