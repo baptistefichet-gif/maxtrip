@@ -656,7 +656,7 @@ export default function HomePage() {
                 })}</div>}
                 <button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
                   aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
-                  <span>{returnEnabled ? "Voir " + matchingReturns.length + " retour(s) compatible(s)" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                  <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
                 {isExpanded && <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
