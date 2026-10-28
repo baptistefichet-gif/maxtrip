@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
@@ -266,6 +266,24 @@ export default function HomePage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (mode !== "explore" || !selectedExploreDestination) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setSelectedExploreDestination(null);
+        setSelectedJourneyKey(null);
+        setExpandedTripKey(null);
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mode, selectedExploreDestination]);
+
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return journeys;
     return journeys.filter(journey => {
@@ -516,7 +534,40 @@ export default function HomePage() {
           </div>
         </section>}
 
-        <section id="search-results" className="mt-6 scroll-mt-4">
+        <section
+          id="search-results"
+          aria-label={mode === "explore" && selectedExploreDestination ? "Itinéraires pour " + selectedExploreDestination : "Résultats de recherche"}
+          role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}
+          aria-modal={mode === "explore" && selectedExploreDestination ? true : undefined}
+          className={
+            mode === "explore" && !selectedExploreDestination
+              ? "hidden"
+              : mode === "explore" && selectedExploreDestination
+                ? "fixed inset-0 z-[2000] overflow-y-auto bg-slate-950/50 p-2 sm:p-6"
+                : "mt-6 scroll-mt-4"
+          }
+          onClick={event => {
+            if (mode === "explore" && selectedExploreDestination && event.target === event.currentTarget) {
+              setSelectedExploreDestination(null);
+              setSelectedJourneyKey(null);
+              setExpandedTripKey(null);
+            }
+          }}
+        >
+          <div className={mode === "explore" && selectedExploreDestination ? "mx-auto my-2 max-w-5xl rounded-3xl bg-paper p-3 shadow-2xl sm:my-6 sm:p-6" : ""}>
+            {mode === "explore" && selectedExploreDestination && <div className="mb-5 flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
+              <div className="min-w-0">
+                <button type="button" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
+                  <ArrowLeft size={16}/> Toutes les destinations
+                </button>
+                <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
+                <p className="mt-1 text-sm text-slate-600">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {filtered.length} itinéraire(s) distinct(s)</p>
+                {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
+              </div>
+              <button type="button" aria-label="Fermer le détail de la destination" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
+                <X size={20}/>
+              </button>
+            </div>}
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><h2 className="text-xl font-black">Résultats de recherche</h2><p className="mt-1 text-sm text-slate-500">{lastFetch? `Dernière réponse API : ${new Date(lastFetch).toLocaleString("fr-FR")}` : "Lance une recherche pour récupérer les données publiées."}</p></div>
             {lastFetch && <button onClick={searchTrains} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold"><RefreshCw size={15}/> Actualiser</button>}
@@ -594,8 +645,7 @@ export default function HomePage() {
             <button type="button" onClick={() => { setCurrentPage(page => Math.min(pageCount, page + 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === pageCount} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Suivant</button>
           </nav>}
           <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>
-
-
+          </div>
         </section>
 
         <footer className="mt-10 border-t border-slate-200 pt-5 text-xs leading-5 text-slate-500">

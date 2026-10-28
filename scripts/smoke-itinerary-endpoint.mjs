@@ -35,6 +35,15 @@ async function main() {
   if (!pageSource.includes('const [outEnd, setOutEnd] = useState("");') || !pageSource.includes('end: outEnd || "24:00"')) throw new Error("The outbound end time must be optional and treated as end of day.");
   if (!pageSource.includes('const [returnEnd, setReturnEnd] = useState("");') || !pageSource.includes('params.set("returnEnd", returnEnd || "24:00")')) throw new Error("The return end time must be optional and treated as end of day.");
   if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
+  if (!pageSource.includes('role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}') ||
+      !pageSource.includes("Toutes les destinations") ||
+      !pageSource.includes('aria-label="Fermer le détail de la destination"') ||
+      !pageSource.includes('className="hidden"')) {
+    throw new Error("In Explore mode, selecting a destination must open an accessible detail dialog and hide the inline results behind it.");
+  }
+  if (!pageSource.includes('event.key === "Escape"') || !pageSource.includes("document.body.style.overflow = \"hidden\"")) {
+    throw new Error("The destination detail dialog must be dismissible with Escape and lock background scrolling.");
+  }
   if (!pageSource.includes("Autoriser les trajets avec correspondance") || !pageSource.includes("Je veux un retour TGV MAX")) throw new Error("The connection toggle and return label must be visible and clear.");
   if (!apiSource.includes("const routeLimit = MAX_ROUTES;")) throw new Error("Explore route counts must not be capped at four routes per destination.");
   if (!mapSource.includes("tile.openstreetmap.org") || !mapSource.includes('journey.changes === 0 ? "#16825d" : "#d97706"')) throw new Error("The map must use public OSM tiles and distinct direct/indirect colors.");
