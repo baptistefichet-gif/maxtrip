@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Database, GitBranch, MapPinned, Search, ShieldAlert, TrainFront } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, Database, GitBranch, MapPinned, Search, ShieldAlert, TrainFront } from "lucide-react";
 import SiteHeader from "@/components/SiteHeader";
 
 const steps = [
-  { number: "01", icon: Search, title: "Choisis ta recherche", body: "Avec Explorer, découvre où partir depuis ta gare. Avec Trajet classique, indique aussi ta destination. Choisis la date et la plage horaire de départ. Sans heure de fin, la recherche va jusqu’à la fin de la journée." },
-  { number: "02", icon: CalendarDays, title: "Ajoute tes options", body: "Active les trajets avec correspondance pour élargir les possibilités. Si tu veux un retour TGV MAX, coche l’option et indique sa date et ses horaires avant de rechercher." },
-  { number: "03", icon: MapPinned, title: "Compare les trajets trouvés", body: "Ouvre une destination depuis la carte ou la liste. Compare les horaires, la durée, les changements et les retours proposés. Vert : trajet direct. Orange : trajet avec correspondance. Les compteurs portent sur les trajets trouvés avec tes filtres." },
-  { number: "04", icon: TrainFront, title: "Vérifie et réserve", body: "MaxTrip propose des possibilités de voyage, mais ne réserve pas de billet. Vérifie les horaires, les gares et la disponibilité sur SNCF Connect, puis réserve les trains nécessaires pour l’aller et le retour." }
+  { number: "01", icon: Search, title: "Choisis ton trajet", body: "Indique ta gare de départ et la date à laquelle tu veux voyager. Avec Explorer, découvre les destinations possibles. Avec Trajet classique, choisis directement où tu veux aller." },
+  { number: "02", icon: CalendarDays, title: "Ajoute tes préférences", body: "Choisis tes heures de départ. Tu peux aussi chercher des trajets avec correspondance et demander un retour TGV MAX." },
+  { number: "03", icon: MapPinned, title: "Regarde les résultats", body: "Compare les horaires et la durée des trajets. Un trajet direct se fait sans changer de train. Un trajet avec correspondance nécessite de changer de train en cours de route. Ouvre un trajet pour voir ses détails et, si tu as demandé un retour, les retours compatibles." },
+  { number: "04", icon: TrainFront, title: "Vérifie et réserve", body: "Tu as trouvé un trajet qui te plaît ? Vérifie sa disponibilité sur SNCF Connect et réserve tes billets. MaxTrip t’aide à chercher, mais ne vend pas de billets." }
 ];
 
 export default function HowItWorksPage() {
@@ -41,23 +41,15 @@ export default function HowItWorksPage() {
           ))}
         </div>
 
-        <section aria-labelledby="connection-rule" className="mt-8 overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
+        <section aria-labelledby="connection-rule" className="mt-8 rounded-3xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
-              <GitBranch size={21} aria-hidden="true"/>
-            </div>
+            <GitBranch size={24} className="mt-1 shrink-0 text-emerald-700" aria-hidden="true"/>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">La règle de pertinence</p>
-              <h2 id="connection-rule" className="mt-1 text-xl font-black text-emerald-950">Pourquoi certains trajets avec correspondance sont masqués&nbsp;?</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950/75">Une option avec correspondance peut être masquée par défaut lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure. « Afficher aussi les autres trajets avec correspondance » réaffiche les alternatives trouvées.</p>
+              <h2 id="connection-rule" className="text-xl font-black text-emerald-950">Pourquoi certains trajets avec correspondance ne s’affichent pas tout de suite&nbsp;?</h2>
+              <p className="mt-3 text-sm leading-6 text-emerald-950">Quand un trajet direct vers la même gare part à peu près à la même heure et arrive plus tôt, MaxTrip le met en avant pour simplifier les résultats. Tu peux toujours retrouver les autres possibilités avec le bouton « Afficher aussi les autres trajets avec correspondance ».</p>
+              <p className="mt-2 text-sm leading-6 text-emerald-950">Si tu as demandé un retour, MaxTrip tient aussi compte des retours disponibles.</p>
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">1. Même destination</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Les trajets sont comparés uniquement s’ils arrivent à la même gare.</p></div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">2. Trajet direct proche</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Le trajet direct part au maximum 60 minutes avant ou après le trajet avec correspondance et arrive plus tôt ou à la même heure.</p></div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">3. Retour préservé</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Si un retour est demandé, le trajet direct doit également avoir un retour compatible.</p></div>
-          </div>
-          <p className="mt-4 text-sm leading-6 text-emerald-950">Exemple : trajet direct 10 h 38 → 13 h 41 ; trajet avec correspondance 10 h 38 → 14 h 41. Le second est masqué par défaut, mais reste accessible. Cela ne garantit pas que toutes les possibilités SNCF ont été chargées.</p>
         </section>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -66,14 +58,10 @@ export default function HowItWorksPage() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-navy"><Database size={21} aria-hidden="true"/></div>
               <div>
                 <h2 id="data-heading" className="text-xl font-black">D’où viennent les données&nbsp;?</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">MaxTrip utilise le jeu de données TGVmax de l’Open Data SNCF, actualisé quotidiennement. Il s’agit de disponibilités signalées, pas d’un accès direct aux réservations.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">MaxTrip utilise les informations de disponibilité TGV MAX publiées par la SNCF. Les places peuvent évoluer entre ta recherche et ta réservation.</p>
               </div>
             </div>
-            <ul className="mt-5 space-y-3 text-sm leading-5 text-slate-600">
-              <li className="flex gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Chaque trajet affiché est construit à partir de segments marqués disponibles dans la source.</li>
-              <li className="flex gap-2"><Clock3 size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Les horaires, durées et temps de correspondance sont calculés à partir de ces segments.</li>
-              <li className="flex gap-2"><TrainFront size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Vérifie toujours le trajet et la place sur SNCF Connect avant de partir.</li>
-            </ul>
+            <p className="mt-4 text-sm leading-6 text-slate-600">Les places affichées sont indicatives et peuvent changer. Vérifie toujours la disponibilité avant de réserver.</p>
           </section>
 
           <section aria-labelledby="limits-heading" className="rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
@@ -81,14 +69,10 @@ export default function HowItWorksPage() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-amber-800"><ShieldAlert size={21} aria-hidden="true"/></div>
               <div>
                 <h2 id="limits-heading" className="text-xl font-black text-amber-950">Quand les résultats peuvent manquer</h2>
-                <p className="mt-2 text-sm leading-6 text-amber-950/75">Le catalogue SNCF est chargé par pages et le moteur applique des limites de temps, de volume et de sécurité.</p>
+                <p className="mt-2 text-sm leading-6 text-amber-950/75">Il arrive que MaxTrip ne puisse pas récupérer tous les trajets.</p>
               </div>
             </div>
-            <ul className="mt-5 list-disc space-y-2 pl-5 text-sm leading-5 text-amber-950/80">
-              <li>Si une limite est atteinte ou si une page secondaire ne répond pas, MaxTrip affiche un message de recherche partielle.</li>
-              <li>La pagination parcourt les itinéraires déjà chargés ; elle ne récupère pas les données qui n’ont pas pu être chargées.</li>
-              <li>Les changements de gare sont proposés lorsqu’une marge de transfert est calculable. Cette marge ne garantit pas la réussite du changement.</li>
-            </ul>
+            <p className="mt-4 text-sm leading-6 text-amber-950/80">Si certaines informations SNCF n’ont pas pu être récupérées, MaxTrip te prévient. Il peut alors exister d’autres trajets que ceux affichés.</p>
           </section>
         </div>
 
