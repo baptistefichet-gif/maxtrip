@@ -23,7 +23,9 @@ const PAGE_SIZE = 100;
 const MAX_RECORDS = 5000;
 const MAX_CONNECTION_RECORDS_PER_QUERY = 800;
 const SNCF_REQUEST_TIMEOUT_MS = 30000;
-const MAX_CONNECTION_BATCHES_IN_FLIGHT = 3;
+const MAX_CONNECTION_BATCHES_IN_FLIGHT = 4;
+const MAX_TRANSFER_CANDIDATES_FIRST_HOP = 64;
+const MAX_TRANSFER_CANDIDATES_LATER_HOPS = 32;
 const MAX_ROUTES = 400;
 const CITY_PREFIXES = [
   "AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE",
@@ -214,11 +216,11 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
     // A destination search needs enough real feeder stations to avoid hiding
     // valid routes (notably Paris → Aix). Keep the cap bounded for Explore mode,
     // but allow classic searches to inspect a wider set of candidates.
-    const stationLimit = depth === 0 ? 1 : (depth === 1 ? (preferredStations.length ? 32 : 24) : 12);
+    const stationLimit = depth === 0 ? 1 : (depth === 1 ? MAX_TRANSFER_CANDIDATES_FIRST_HOP : MAX_TRANSFER_CANDIDATES_LATER_HOPS);
     const selectedStations = depth === 0 ? stations : stations.slice(0, stationLimit);
     if (stations.length > selectedStations.length) {
       truncated = true;
-      truncationReasons.add("Le nombre de gares candidates pour les correspondances a été limité à " + selectedStations.length + " à cette étape.");
+      truncationReasons.add("La recherche a examiné " + selectedStations.length + " gares de correspondance sur " + stations.length + " candidates à cette étape. Certaines possibilités supplémentaires peuvent manquer.");
     }
 
     // Use bounded OR-groups at connection levels, but run a few groups in
