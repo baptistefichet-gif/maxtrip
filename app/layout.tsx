@@ -4,8 +4,8 @@ import "leaflet/dist/leaflet.css";
 
 export const metadata: Metadata = {
   title: "MaxTrip — Les voyages MAX à portée de main",
-  description: "Explore les destinations et itinéraires compatibles avec les disponibilités TGV MAX.",
-  robots: { index: false, follow: false },
+  description: "Trouve où partir avec TGV MAX : découvre les destinations accessibles depuis ta gare et cherche un aller-retour pour le week-end.",
+  robots: { index: true, follow: true },
   applicationName: "MaxTrip"
 };
 

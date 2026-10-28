@@ -60,7 +60,7 @@ async function main() {
   if (!pageSource.includes('const [returnEnd, setReturnEnd] = useState("");') || !pageSource.includes('params.set("returnEnd", returnEnd || "24:00")')) throw new Error("The return end time must be optional and treated as end of day.");
   if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
   if (!pageSource.includes("applyConnectionRelevance") ||
-      !pageSource.includes("Afficher aussi les autres correspondances") ||
+      !pageSource.includes("applyConnectionRelevance(journeys") ||
       !mapSource.includes("radius={28}") ||
       !mapSource.includes("interactive={true}") ) {
     throw new Error("Shared relevance rule, explicit alternative access, and enlarged touch targets must exist.");

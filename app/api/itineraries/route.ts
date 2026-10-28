@@ -494,19 +494,6 @@ export async function GET(request: NextRequest) {
 
     if (routes.length >= MAX_ROUTES) truncationReasons.add("Le moteur a atteint sa limite de " + MAX_ROUTES + " itinéraires construits.");
     return NextResponse.json({
-      debug: {
-        directRouteCount,
-        rootRowsLoaded: rootRows.length,
-        rootAvailableRows: rootAvailableRows.length,
-        rootInTimeWindow: rootInTimeWindow.length,
-        sampleRoot: rootRows.slice(0, 3).map(record => ({
-          origine: originOf(record),
-          destination: destinationOf(record),
-          heure_depart: departureOf(record),
-          heure_arrivee: arrivalOf(record),
-          od_happy_card: field(record, ["od_happy_card"])
-        }))
-      },
       routes,
       totalRoutes: routes.length,
       sourceCount: outboundData.total,

@@ -202,7 +202,9 @@ export default function HomePage() {
   const [originSearch, setOriginSearch] = useState("");
   const [destinationSearch, setDestinationSearch] = useState("");
   const [originOpen, setOriginOpen] = useState(false);
+  const [originActiveIndex, setOriginActiveIndex] = useState(0);
   const [destinationOpen, setDestinationOpen] = useState(false);
+  const [destinationActiveIndex, setDestinationActiveIndex] = useState(0);
   const [stations, setStations] = useState<StationCatalogue>({ origins: [], destinations: [] });
   const [stationsLoading, setStationsLoading] = useState(true);
   const [stationsError, setStationsError] = useState("");
@@ -238,7 +240,7 @@ export default function HomePage() {
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
-    return stations.origins.filter(station => !query || normalizeText(station).includes(query) || normalizeText(station).includes(query)).slice(0, 12);
+    return stations.origins.filter(station => !query || normalizeText(station).includes(query)).slice(0, 12);
   }, [stations.origins, originSearch]);
 
   const destinationOptions = useMemo(() => {
@@ -460,36 +462,40 @@ export default function HomePage() {
             <div className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2">
               <div className="relative">
                 <label htmlFor="origin-station" className="block text-sm font-semibold text-slate-700">Gare de départ</label>
-                <input id="origin-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={originOpen && originOptions.length > 0} aria-controls="origin-station-suggestions" autoComplete="off"
+                <input id="origin-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={originOpen && originOptions.length > 0} aria-controls="origin-station-suggestions" aria-activedescendant={originOpen && originSearch && originOptions.length ? "origin-option-" + Math.min(originActiveIndex, originOptions.length - 1) : undefined} autoComplete="off"
                   value={originSearch || (origin ? origin : "")}
                   onFocus={() => { setOriginOpen(true); if (!originSearch && origin) setOriginSearch(origin); }}
-                  onChange={e => { setOriginSearch(e.target.value); setOrigin(""); setOriginOpen(true); }}
+                  onChange={e => { setOriginSearch(e.target.value); setOrigin(""); setOriginActiveIndex(0); setOriginOpen(true); }}
                   onKeyDown={e => {
                     if (e.key === "Escape") setOriginOpen(false);
-                    if (e.key === "Enter" && originOptions.length) { e.preventDefault(); setOrigin(originOptions[0]); setOriginSearch(""); setOriginOpen(false); }
+                    if (e.key === "ArrowDown" && originOptions.length) { e.preventDefault(); setOriginOpen(true); setOriginActiveIndex(index => Math.min(index + 1, originOptions.length - 1)); }
+                    if (e.key === "ArrowUp" && originOptions.length) { e.preventDefault(); setOriginOpen(true); setOriginActiveIndex(index => Math.max(0, index - 1)); }
+                    if (e.key === "Enter" && originOptions.length) { e.preventDefault(); setOrigin(originOptions[Math.min(originActiveIndex, originOptions.length - 1)]); setOriginSearch(""); setOriginOpen(false); }
                   }}
                   placeholder={stationsLoading ? "Chargement des gares…" : "Tape une gare ou une ville…"} disabled={stationsLoading || stations.origins.length === 0}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>
                 {originOpen && originSearch && <div id="origin-station-suggestions" role="listbox" className="absolute inset-x-0 top-full z-[1000] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
-                  {originOptions.length ? originOptions.map(station => <button key={station} type="button" role="option" aria-selected={origin === station} onMouseDown={e => e.preventDefault()} onClick={() => { setOrigin(station); setOriginSearch(""); setOriginOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
+                  {originOptions.length ? originOptions.map((station, index) => <button key={station} id={"origin-option-" + index} type="button" role="option" aria-selected={originActiveIndex === index} onMouseDown={e => e.preventDefault()} onClick={() => { setOrigin(station); setOriginSearch(""); setOriginOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 aria-selected:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.origins.length} gares disponibles`}</p>
                 {stationsError && <p className="mt-1 text-xs font-normal text-red-700">{stationsError}</p>}
               </div>
               {mode==="classic" && <div className="relative">
                 <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
-                <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" autoComplete="off"
+                <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" aria-activedescendant={destinationOpen && destinationSearch && destinationOptions.length ? "destination-option-" + Math.min(destinationActiveIndex, destinationOptions.length - 1) : undefined} autoComplete="off"
                   value={destinationSearch || (destination ? destination : "")}
                   onFocus={() => { setDestinationOpen(true); if (!destinationSearch && destination) setDestinationSearch(destination); }}
-                  onChange={e => { setDestinationSearch(e.target.value); setDestination(""); setDestinationOpen(true); }}
+                  onChange={e => { setDestinationSearch(e.target.value); setDestination(""); setDestinationActiveIndex(0); setDestinationOpen(true); }}
                   onKeyDown={e => {
                     if (e.key === "Escape") setDestinationOpen(false);
-                    if (e.key === "Enter" && destinationOptions.length) { e.preventDefault(); setDestination(destinationOptions[0]); setDestinationSearch(""); setDestinationOpen(false); }
+                    if (e.key === "ArrowDown" && destinationOptions.length) { e.preventDefault(); setDestinationOpen(true); setDestinationActiveIndex(index => Math.min(index + 1, destinationOptions.length - 1)); }
+                    if (e.key === "ArrowUp" && destinationOptions.length) { e.preventDefault(); setDestinationOpen(true); setDestinationActiveIndex(index => Math.max(0, index - 1)); }
+                    if (e.key === "Enter" && destinationOptions.length) { e.preventDefault(); setDestination(destinationOptions[Math.min(destinationActiveIndex, destinationOptions.length - 1)]); setDestinationSearch(""); setDestinationOpen(false); }
                   }}
                   placeholder={stationsLoading ? "Chargement des gares…" : "Tape une gare ou une ville…"} disabled={stationsLoading || stations.destinations.length === 0}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>
                 {destinationOpen && destinationSearch && <div id="destination-station-suggestions" role="listbox" className="absolute inset-x-0 top-full z-[1000] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
-                  {destinationOptions.length ? destinationOptions.map(station => <button key={station} type="button" role="option" aria-selected={destination === station} onMouseDown={e => e.preventDefault()} onClick={() => { setDestination(station); setDestinationSearch(""); setDestinationOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
+                  {destinationOptions.length ? destinationOptions.map((station, index) => <button key={station} id={"destination-option-" + index} type="button" role="option" aria-selected={destinationActiveIndex === index} onMouseDown={e => e.preventDefault()} onClick={() => { setDestination(station); setDestinationSearch(""); setDestinationOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.destinations.length} gares disponibles`}</p>
               </div>}
