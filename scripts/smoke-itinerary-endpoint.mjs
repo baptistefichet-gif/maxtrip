@@ -110,9 +110,14 @@ async function main() {
     if (!response.ok) throw new Error("Itinerary endpoint returned HTTP " + response.status + ": " + body.slice(0, 500));
     const liveRuleResult = applyConnectionRelevance(data.routes, { enabled: true, showAllConnections: false, returnRequired: false, toleranceMinutes: 60 });
     const liveSuppressed = liveRuleResult.suppressed;
+    const canonical = value => {
+      const normalized = String(value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().replace(/[’']/g, " ").replace(/\\s+/g, " ").trim();
+      const cityPrefixes = ["AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE", "MONTPELLIER", "STRASBOURG", "PERPIGNAN", "BESANCON", "MULHOUSE", "MARSEILLE", "BORDEAUX", "TOULOUSE", "GRENOBLE", "CHAMBERY", "ANNECY", "AVIGNON", "VALENCE", "NARBONNE", "BAYONNE", "NIMES", "ORLEANS", "POITIERS", "LIMOGES", "ANGERS", "NANTES", "RENNES", "LILLE", "LYON", "DIJON", "TOURS", "REIMS", "METZ", "NANCY", "ROUEN", "CAEN", "BREST", "AMIENS", "TARBES", "PAU", "NICE", "TOULON", "PARIS"];
+      return cityPrefixes.find(prefix => normalized === prefix || normalized.startsWith(prefix + " ")) ?? normalized;
+    };
     const expectedSuppressed = liveSuppressed.every(candidate => data.routes.some(direct =>
       direct.changes === 0 &&
-      String(direct.destination).normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().startsWith(String(candidate.destination).normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().slice(0, Math.min(5, String(candidate.destination).length))) &&
+      canonical(direct.destination) === canonical(candidate.destination) &&
       Math.abs(direct.departureMinutes - candidate.departureMinutes) <= 60 &&
       direct.arrivalMinutes <= candidate.arrivalMinutes
     ));

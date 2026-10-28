@@ -1,7 +1,7 @@
 "use client";
 
 import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, useMap } from "react-leaflet";
-import { useEffect, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 import type { LatLngExpression } from "leaflet";
 
 export type MapStation = { name: string; lat: number; lon: number; count?: number };
@@ -67,13 +67,15 @@ export default function StationMap({
           </CircleMarker>
         </>}
         {visibleJourney && visibleJourney.points.slice(1, -1).map((station, index) => station ? (
-          <CircleMarker key={visibleJourney.key + "-transfer-hit-" + index} center={[station.lat, station.lon]} radius={20} interactive={false} pathOptions={{ stroke: false, fillColor: "#d97706", fillOpacity: 0.08 }}/>
-          <CircleMarker key={visibleJourney.key + "-transfer-" + index} center={[station.lat, station.lon]} radius={10} interactive={false}
-            pathOptions={{ color: "#fff", weight: 3, fillColor: "#d97706", fillOpacity: 1 }}>
-            <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
-          </CircleMarker>
+          <Fragment key={visibleJourney.key + "-transfer-" + index}>
+            <CircleMarker center={[station.lat, station.lon]} radius={20} interactive={false} pathOptions={{ stroke: false, fillColor: "#d97706", fillOpacity: 0.08 }}/>
+            <CircleMarker center={[station.lat, station.lon]} radius={10} interactive={false}
+              pathOptions={{ color: "#fff", weight: 3, fillColor: "#d97706", fillOpacity: 1 }}>
+              <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
+            </CircleMarker>
+          </Fragment>
         ) : null)}
-        {stations.map(station => <g key={station.name}>
+        {stations.map(station => <Fragment key={station.name}>
           <CircleMarker center={[station.lat, station.lon]} radius={22}
             pathOptions={{ color: selected === station.name ? "#14865c" : "#24486f", weight: 1, opacity: 0, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.02 }}
             eventHandlers={{ click: () => onSelect?.(station.name) }}>
@@ -81,7 +83,7 @@ export default function StationMap({
           </CircleMarker>
           <CircleMarker center={[station.lat, station.lon]} radius={selected === station.name ? 11 : 8} interactive={false}
             pathOptions={{ color: "#fff", weight: 3, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 1 }}/>
-        </g>)}
+        </Fragment>)}
       </MapContainer>
     </div>
   );
