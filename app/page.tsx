@@ -133,6 +133,20 @@ function normalizeText(value: string) {
   return value.trim().normalize("NFC").toLocaleUpperCase("fr-FR");
 }
 
+// Presentation-only labels: retain the exact SNCF station identifier for API queries.
+function stationDisplayName(value: string) {
+  const normalized = normalizeText(value).replace(/[-_]/g, " ");
+  if (/^PARIS\s*\(INTRAMUROS\)$/.test(normalized)) return "Paris (intramuros) — toutes les gares regroupées par la SNCF";
+  if (/^LYON\s*\(INTRAMUROS\)$/.test(normalized)) return "Lyon (intramuros) — toutes les gares regroupées par la SNCF";
+  const city = normalized.startsWith("PARIS ") ? "Paris" : normalized.startsWith("LYON ") ? "Lyon" : "";
+  if (!city) return value;
+  const suffix = value.slice(city.length).trim().replace(/^[-–\s]+/, "");
+  if (!suffix || suffix.toLocaleUpperCase("fr-FR").includes("INTRAMUROS")) return value;
+  const lower = suffix.toLocaleLowerCase("fr-FR");
+  const title = lower.replace(/(^|[\s'-])([a-zà-ÿ])/g, (_match, separator: string, letter: string) => separator + letter.toLocaleUpperCase("fr-FR"));
+  return city + " — " + (/^gare\b/i.test(suffix) ? title : "Gare " + title);
+}
+
 function matchesCityOrStation(value: string, query: string) {
   const station = normalizeText(value);
   const requested = normalizeText(query);
@@ -238,12 +252,12 @@ export default function HomePage() {
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
-    return stations.origins.filter(station => !query || normalizeText(station).includes(query)).slice(0, 8);
+    return stations.origins.filter(station => !query || normalizeText(station).includes(query) || normalizeText(stationDisplayName(station)).includes(query)).slice(0, 12);
   }, [stations.origins, originSearch]);
 
   const destinationOptions = useMemo(() => {
     const query = normalizeText(destinationSearch);
-    return stations.destinations.filter(station => !query || normalizeText(station).includes(query)).slice(0, 8);
+    return stations.destinations.filter(station => !query || normalizeText(station).includes(query) || normalizeText(stationDisplayName(station)).includes(query)).slice(0, 12);
   }, [stations.destinations, destinationSearch]);
 
   useEffect(() => {
@@ -467,10 +481,10 @@ export default function HomePage() {
                     if (e.key === "Escape") setOriginOpen(false);
                     if (e.key === "Enter" && originOptions.length) { e.preventDefault(); setOrigin(originOptions[0]); setOriginSearch(""); setOriginOpen(false); }
                   }}
-                  placeholder={stationsLoading ? "Chargement des gares…" : "Tape une gare ou une ville…"} disabled={stationsLoading || stations.origins.length === 0}
+                  placeholder={stationsLoading ? "Chargement des gares…" : "Ex. Paris, Gare de Lyon, Montparnasse…"} disabled={stationsLoading || stations.origins.length === 0}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 font-normal outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"/>
                 {originOpen && originSearch && <div id="origin-station-suggestions" role="listbox" className="absolute inset-x-0 top-full z-[1000] mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
-                  {originOptions.length ? originOptions.map(station => <button key={station} type="button" role="option" aria-selected={origin === station} onMouseDown={e => e.preventDefault()} onClick={() => { setOrigin(station); setOriginSearch(""); setOriginOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{station}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
+                  {originOptions.length ? originOptions.map(station => <button key={station} type="button" role="option" aria-selected={origin === station} onMouseDown={e => e.preventDefault()} onClick={() => { setOrigin(station); setOriginSearch(""); setOriginOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none">{stationDisplayName(station)}</button>) : <p className="px-3 py-2 text-sm text-slate-500">Aucune gare trouvée.</p>}
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.origins.length} gares disponibles`}</p>
                 {stationsError && <p className="mt-1 text-xs font-normal text-red-700">{stationsError}</p>}
