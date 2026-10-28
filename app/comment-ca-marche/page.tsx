@@ -48,8 +48,8 @@ export default function HowItWorksPage() {
             </div>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">La règle de pertinence</p>
-              <h2 id="connection-rule" className="mt-1 text-xl font-black text-emerald-950">Pourquoi certaines correspondances sont masquées&nbsp;?</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950/75">Une option avec correspondance peut être masquée par défaut lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure. « Afficher aussi les autres correspondances » réaffiche les alternatives trouvées.</p>
+              <h2 id="connection-rule" className="mt-1 text-xl font-black text-emerald-950">Pourquoi certains trajets avec correspondance sont masqués&nbsp;?</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950/75">Une option avec correspondance peut être masquée par défaut lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure. « Afficher aussi les autres trajets avec correspondance » réaffiche les alternatives trouvées.</p>
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -71,7 +71,7 @@ export default function HowItWorksPage() {
             </div>
             <ul className="mt-5 space-y-3 text-sm leading-5 text-slate-600">
               <li className="flex gap-2"><CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Chaque trajet affiché est construit à partir de segments marqués disponibles dans la source.</li>
-              <li className="flex gap-2"><Clock3 size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Les horaires, durées et correspondances sont calculés à partir de ces segments.</li>
+              <li className="flex gap-2"><Clock3 size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Les horaires, durées et temps de correspondance sont calculés à partir de ces segments.</li>
               <li className="flex gap-2"><TrainFront size={17} className="mt-0.5 shrink-0 text-emerald-700" aria-hidden="true"/>Vérifie toujours le trajet et la place sur SNCF Connect avant de partir.</li>
             </ul>
           </section>

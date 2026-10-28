@@ -619,14 +619,14 @@ export default function HomePage() {
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
             {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              {showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres correspondances" + (suppressedConnectionCount > 0 ? " (" + suppressedConnectionCount + ")" : "")}
+              {showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance" + (suppressedConnectionCount > 0 ? " (" + suppressedConnectionCount + ")" : "")}
             </button>}
           </div>}
           {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche est partielle : une limite de sécurité a été atteinte. Certains itinéraires peuvent manquer.
             {truncationReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{truncationReasons.map((reason, index) => <li key={reason + index}>{reason}</li>)}</ul>}
             <p className="mt-2">La pagination parcourt les résultats chargés ; elle ne récupère pas à elle seule les données manquantes.</p>
           </div>}
-          {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les correspondances sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
+          {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les trajets avec correspondance sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
             {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun résultat ne correspond aux champs actuellement reconnus. Cela peut signifier qu'il faut adapter le mapping aux noms de champs exacts du jeu SNCF. Aucun itinéraire n'est inventé.</div>}
