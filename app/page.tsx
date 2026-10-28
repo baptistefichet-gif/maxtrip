@@ -678,7 +678,7 @@ export default function HomePage() {
                   <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
                 {returnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
-                  <h3 className="mt-5 border-t border-emerald-100 pt-4 font-bold text-slate-900">Retours compatibles</h3>
+                  <h3 className="font-bold text-slate-900">Retours compatibles</h3>
                   {returnEnabled
                     ? matchingReturns.length
                       ? <div className="mt-3 grid gap-3">{matchingReturns.map((back, backIndex) => <div key={back.key + "-" + backIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
