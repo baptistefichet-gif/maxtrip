@@ -22,7 +22,7 @@ const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax
 const PAGE_SIZE = 100;
 const MAX_RECORDS = 5000;
 const MAX_CONNECTION_RECORDS_PER_QUERY = 800;
-const SNCF_REQUEST_TIMEOUT_MS = 15000;
+const SNCF_REQUEST_TIMEOUT_MS = 30000;
 const MAX_CONNECTION_BATCHES_IN_FLIGHT = 3;
 const MAX_ROUTES = 400;
 const CITY_PREFIXES = [
@@ -105,6 +105,7 @@ async function requestSNCF(url: string) {
       lastError = new Error("SNCF HTTP " + response.status);
     } catch (error) {
       lastError = error;
+      if (error instanceof Error && error.name === "TimeoutError") break;
     }
     if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
   }
