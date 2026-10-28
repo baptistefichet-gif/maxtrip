@@ -232,6 +232,7 @@ export default function HomePage() {
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
+  const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
 
@@ -636,13 +637,14 @@ export default function HomePage() {
               const arr = journey.arrival;
               const tripKey = journey.key;
               const isExpanded = expandedTripKey === tripKey;
+              const areReturnsExpanded = expandedReturnKey === tripKey;
               const matchingReturns = journey.returns ?? [];
               const journeyDateLabel = new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
               const finalCity = mapCityName(to);
               return <article key={tripKey + "-" + index} className={"rounded-2xl border bg-white p-4 shadow-sm sm:p-5 " + (selectedJourneyKey === tripKey ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold"><TrainFront size={17} className="text-emerald-700"/>{from} <span className="text-slate-400">→</span> {to}</div>
-                  <span className={"inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " + (journey.changes === 0 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950")}>{journey.changes === 0 ? <TrainFront size={14}/> : <GitBranch size={14}/>} {journey.changes === 0 ? "Direct" : journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
+                  <span className={"inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " + (journey.changes === 0 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950")}>{journey.changes === 0 ? <TrainFront size={14}/> : <GitBranch size={14}/>} {journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
                 </div>
                 <p className="mt-2 text-xs font-medium text-slate-500"><CalendarDays size={13} className="mr-1 inline-block"/>{journeyDateLabel}</p>
                 <div className="mt-3 grid grid-cols-3 items-center gap-2">
@@ -654,11 +656,13 @@ export default function HomePage() {
                   const gap = layoverMinutes(leg, journey.legs[legIndex + 1]);
                   return <span key={getTripKey(leg)} className="rounded-full bg-amber-50 px-3 py-1">Changement à {getPlace(leg, "destination")} · attente {gap === null ? "n.c." : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0")}</span>;
                 })}</div>}
-                <button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
-                  aria-expanded={isExpanded} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
+                <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
+                  aria-expanded={isExpanded} aria-controls={"details-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
-                {isExpanded && <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer les " : "Voir les "}{matchingReturns.length} retour(s) compatible(s)</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
+                </div>
+                {isExpanded && <div id={"details-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
                   <div className="mt-3 grid gap-3">{journey.legs.map((leg, legIndex) => {
                     const legFrom = getPlace(leg, "origin");
@@ -671,18 +675,20 @@ export default function HomePage() {
                       {legIndex < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {legTo} · {(() => { const gap = layoverMinutes(leg, journey.legs[legIndex + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>;
                   })}</div>
+                  <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
+                </div>}
+                {returnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="mt-5 border-t border-emerald-100 pt-4 font-bold text-slate-900">Retours compatibles</h3>
                   {returnEnabled
                     ? matchingReturns.length
                       ? <div className="mt-3 grid gap-3">{matchingReturns.map((back, backIndex) => <div key={back.key + "-" + backIndex} className="rounded-xl border border-emerald-100 bg-white p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{back.origin} <span className="text-slate-400">→</span> {back.destination}</p><span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">{back.changes === 0 ? "Direct" : back.changes + " correspondance(s)"}</span></div>
+                        <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{back.origin} <span className="text-slate-400">→</span> {back.destination}</p><span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">{back.changes === 0 ? "Trajet direct" : "Trajet avec " + back.changes + " correspondance(s)"}</span></div>
                         <p className="mt-2 text-sm">{back.departure} → {back.arrival} · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>
                         <div className="mt-2 grid gap-2">{back.legs.map((leg, backLegIndex) => <p key={getTripKey(leg) + "-" + backLegIndex} className="text-sm text-slate-600">{formatTime(getTime(leg, "departure"))} {getPlace(leg, "origin")} → {formatTime(getTime(leg, "arrival"))} {getPlace(leg, "destination")}</p>)}</div>
                         <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 underline">Vérifier ce retour sur SNCF Connect <ExternalLink size={13}/></a>
                       </div>)}</div>
                       : <p className="mt-2 text-sm text-slate-600">Aucun retour ne remplit les critères de date, horaire et correspondance pour cette destination.</p>
                     : <p className="mt-2 text-sm text-slate-600">Active le retour obligatoire et choisis sa date et ses horaires pour afficher les retours compatibles.</p>}
-                  <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
               </article>;
             })}
