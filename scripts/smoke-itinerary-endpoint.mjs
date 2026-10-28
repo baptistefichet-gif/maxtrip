@@ -38,7 +38,7 @@ async function main() {
   if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
   if (!pageSource.includes("applyConnectionRelevance") ||
       !pageSource.includes("Afficher aussi les autres correspondances") ||
-      !mapSource.includes("radius={22}") ||
+      !mapSource.includes("radius={28}") ||
       !mapSource.includes("interactive={true}") ) {
     throw new Error("Shared relevance rule, explicit alternative access, and enlarged touch targets must exist.");
   }

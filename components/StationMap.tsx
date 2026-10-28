@@ -77,6 +77,7 @@ export default function StationMap({
         ) : null)}
         {stations.map(station => <Fragment key={station.name}>
           <CircleMarker center={[station.lat, station.lon]} radius={28}
+            interactive={true}
             pathOptions={{ color: selected === station.name ? "#14865c" : "#24486f", weight: 1, opacity: 0, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.02 }}
             eventHandlers={{ click: () => onSelect?.(station.name) }}>
             <Tooltip direction="top" permanent={selected === station.name} sticky>{station.name}{station.count ? " · " + station.count + " itinéraire(s)" : ""}</Tooltip>
