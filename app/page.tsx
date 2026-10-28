@@ -275,6 +275,43 @@ export default function HomePage() {
     return () => { active = false; };
   }, []);
 
+  // Give Safari's native Back gesture a real in-page history entry for the destination dialog.
+  // The journey data stays in React state: closing the dialog never reruns the SNCF search.
+  const openDestinationDetails = (name: string) => {
+    const state = window.history.state ?? {};
+    const nextState = { ...state, __maxtripDestination: name };
+    if (state.__maxtripDestination) window.history.replaceState(nextState, "", window.location.href);
+    else window.history.pushState(nextState, "", window.location.href);
+    setSelectedExploreDestination(name);
+    setSelected(name);
+    setSelectedJourneyKey(null);
+    setExpandedTripKey(null);
+    setExpandedReturnKey(null);
+    setCurrentPage(1);
+  };
+  const closeDestinationDetails = () => {
+    if (window.history.state?.__maxtripDestination) {
+      window.history.back();
+    } else {
+      setSelectedExploreDestination(null);
+      setSelectedJourneyKey(null);
+      setExpandedTripKey(null);
+      setExpandedReturnKey(null);
+    }
+  };
+
+  useEffect(() => {
+    const onHistoryChange = (event: PopStateEvent) => {
+      const name = event.state?.__maxtripDestination;
+      setSelectedExploreDestination(typeof name === "string" ? name : null);
+      setSelectedJourneyKey(null);
+      setExpandedTripKey(null);
+      setExpandedReturnKey(null);
+    };
+    window.addEventListener("popstate", onHistoryChange);
+    return () => window.removeEventListener("popstate", onHistoryChange);
+  }, []);
+
   useEffect(() => {
     if (mode !== "explore" || !selectedExploreDestination) return;
     const previousOverflow = document.body.style.overflow;
@@ -288,9 +325,7 @@ export default function HomePage() {
     const frame = window.requestAnimationFrame(focusFirstControl);
     const closeOnKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setSelectedExploreDestination(null);
-        setSelectedJourneyKey(null);
-        setExpandedTripKey(null);
+        closeDestinationDetails();
         return;
       }
       if (event.key !== "Tab") return;
@@ -551,7 +586,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="explore"){setSelectedExploreDestination(name);setCurrentPage(1)}else{setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -567,10 +602,10 @@ export default function HomePage() {
               <h2 className="text-xl font-black">Destinations possibles depuis {origin}</h2>
               <p className="mt-1 text-sm text-slate-500">Nombre de trajets distincts utiles affichés avec les critères choisis.</p>
             </div>
-            {selectedExploreDestination && <button type="button" onClick={() => { setSelectedExploreDestination(null); setCurrentPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Toutes les destinations</button>}
+            {selectedExploreDestination && <button type="button" onClick={closeDestinationDetails} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Toutes les destinations</button>}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {destinationSummaries.map(item => <button key={item.label} type="button" onClick={() => { setSelectedExploreDestination(selectedExploreDestination === item.label ? null : item.label); setSelected(item.label); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }}
+            {destinationSummaries.map(item => <button key={item.label} type="button" onClick={() => selectedExploreDestination === item.label ? closeDestinationDetails() : openDestinationDetails(item.label)}
               aria-pressed={selectedExploreDestination === item.label}
               className={"rounded-2xl border p-4 text-left transition " + (selectedExploreDestination === item.label ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-100" : "border-slate-200 hover:border-emerald-300 hover:bg-slate-50")}>
               <span className="flex items-center justify-between gap-3"><span className="font-bold">{item.label}</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold">{item.count}</span></span>
@@ -596,16 +631,14 @@ export default function HomePage() {
           }
           onClick={event => {
             if (mode === "explore" && selectedExploreDestination && event.target === event.currentTarget) {
-              setSelectedExploreDestination(null);
-              setSelectedJourneyKey(null);
-              setExpandedTripKey(null);
+              closeDestinationDetails();
             }
           }}
         >
           <div className={mode === "explore" && selectedExploreDestination ? "mx-auto min-h-dvh max-w-5xl rounded-none bg-paper p-4 shadow-2xl sm:my-6 sm:min-h-0 sm:rounded-3xl sm:p-6" : ""}>
             {mode === "explore" && selectedExploreDestination && <div className="mb-5 flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
               <div className="min-w-0">
-                <button type="button" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
+                <button type="button" onClick={closeDestinationDetails} className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
                   <ArrowLeft size={16}/> Toutes les destinations
                 </button>
                 <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
