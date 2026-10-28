@@ -211,6 +211,7 @@ export default function HomePage() {
   const [returnStart, setReturnStart] = useState("08:00");
   const [returnEnd, setReturnEnd] = useState("");
   const [allowConnections, setAllowConnections] = useState(false);
+  const [showAllConnections, setShowAllConnections] = useState(false);
   const [maxChanges, setMaxChanges] = useState("1");
   const [minWait, setMinWait] = useState("20");
   const [maxWait, setMaxWait] = useState("90");
@@ -284,17 +285,34 @@ export default function HomePage() {
     };
   }, [mode, selectedExploreDestination]);
 
+  const relevantJourneys = useMemo(() => {
+    if (showAllConnections || !allowConnections) return journeys;
+    return journeys.filter(candidate => {
+      if (candidate.changes === 0) return true;
+      const candidateDestination = normalizeText(mapCityName(candidate.destination) ?? candidate.destination);
+      const isDominatedByDirect = journeys.some(direct => {
+        if (direct.changes !== 0) return false;
+        const directDestination = normalizeText(mapCityName(direct.destination) ?? direct.destination);
+        if (directDestination !== candidateDestination) return false;
+        const departureDifference = Math.abs(direct.departureMinutes - candidate.departureMinutes);
+        // A direct at most one hour away that arrives no later makes the indirect option redundant.
+        return departureDifference <= 60 && direct.arrivalMinutes <= candidate.arrivalMinutes;
+      });
+      return !isDominatedByDirect;
+    });
+  }, [journeys, showAllConnections, allowConnections]);
+
   const filtered = useMemo(() => {
-    if (mode !== "explore" || !selectedExploreDestination) return journeys;
-    return journeys.filter(journey => {
+    if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
+    return relevantJourneys.filter(journey => {
       const label = mapCityName(journey.destination) ?? journey.destination;
       return normalizeText(label) === normalizeText(selectedExploreDestination);
     });
-  }, [journeys, mode, selectedExploreDestination]);
+  }, [relevantJourneys, mode, selectedExploreDestination]);
 
   const destinationSummaries = useMemo(() => {
     const summaries = new Map<string, { label: string; count: number; keys: Set<string> }>();
-    for (const journey of journeys) {
+    for (const journey of relevantJourneys) {
       const label = mapCityName(journey.destination) ?? journey.destination;
       const key = normalizeText(label);
       if (!key) continue;
@@ -382,6 +400,7 @@ export default function HomePage() {
       if (!response.ok) throw new Error(data.error || "La recherche d'itinéraires a échoué.");
       setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
       setSelectedExploreDestination(null);
+      setShowAllConnections(false);
       setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
       setLastFetch(data.fetched_at || new Date().toISOString());
       setSearchTruncated(Boolean(data.truncated));
@@ -520,7 +539,7 @@ export default function HomePage() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-black">Destinations possibles depuis {origin}</h2>
-              <p className="mt-1 text-sm text-slate-500">Nombre de trajets distincts construits avec les critères choisis.</p>
+              <p className="mt-1 text-sm text-slate-500">Nombre de trajets distincts utiles affichés avec les critères choisis.</p>
             </div>
             {selectedExploreDestination && <button type="button" onClick={() => { setSelectedExploreDestination(null); setCurrentPage(1); }} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Toutes les destinations</button>}
           </div>
@@ -562,6 +581,7 @@ export default function HomePage() {
                 </button>
                 <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
                 <p className="mt-1 text-sm text-slate-600">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {filtered.length} itinéraire(s) distinct(s)</p>
+                {allowConnections && <p className="mt-2 text-xs text-slate-500">Les correspondances redondantes avec un direct proche et plus rapide sont masquées par défaut.</p>}
                 {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
               </div>
               <button type="button" aria-label="Fermer le détail de la destination" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
@@ -575,7 +595,12 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && !error && <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mt-0.5 shrink-0"/>Les disponibilités proviennent du jeu de données SNCF Open Data, mis à jour quotidiennement. Elles ne garantissent pas qu'une place soit encore réservable : vérifie les détails sur SNCF Connect avant de partir.</div>}
-          {lastFetch && <p className="mt-2 text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>}
+          {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
+            {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              {showAllConnections ? "Masquer les correspondances redondantes" : "Afficher aussi les autres correspondances"}
+            </button>}
+          </div>}
           {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche a atteint une limite de chargement des données SNCF : certains itinéraires peuvent manquer. Utilise la pagination pour parcourir les résultats disponibles.</div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les correspondances sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 

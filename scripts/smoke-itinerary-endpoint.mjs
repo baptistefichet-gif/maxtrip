@@ -35,6 +35,11 @@ async function main() {
   if (!pageSource.includes('const [outEnd, setOutEnd] = useState("");') || !pageSource.includes('end: outEnd || "24:00"')) throw new Error("The outbound end time must be optional and treated as end of day.");
   if (!pageSource.includes('const [returnEnd, setReturnEnd] = useState("");') || !pageSource.includes('params.set("returnEnd", returnEnd || "24:00")')) throw new Error("The return end time must be optional and treated as end of day.");
   if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
+  if (!pageSource.includes("const relevantJourneys = useMemo") ||
+      !pageSource.includes("departureDifference <= 60 && direct.arrivalMinutes <= candidate.arrivalMinutes") ||
+      !pageSource.includes("Afficher aussi les autres correspondances")) {
+    throw new Error("Redundant indirect itineraries should be hidden by default when a nearby direct arrives no later, with an opt-in to show all alternatives.");
+  }
   if (!pageSource.includes('role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}') ||
       !pageSource.includes("Toutes les destinations") ||
       !pageSource.includes('aria-label="Fermer le détail de la destination"') ||
