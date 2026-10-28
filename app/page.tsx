@@ -405,6 +405,7 @@ export default function HomePage() {
     setSelected(null);
     setSelectedJourneyKey(null);
     setExpandedTripKey(null);
+    setExpandedReturnKey(null);
     try {
       const params = new URLSearchParams({
         date: outDate, origine: origin, start: outStart, end: outEnd || "24:00",
@@ -445,8 +446,8 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pt-7 sm:px-6 sm:pt-10">
         <div className="max-w-2xl">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900"><Sparkles size={14}/> Open Data SNCF</div>
-          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Pars où tu veux.<br/><span className="text-emerald-700">Trouve tes trajets TGV MAX.</span></h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">Explore les destinations signalées disponibles ou trouve un itinéraire précis, avec ou sans correspondance et retour.</p>
+          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Tu as TGV MAX ?<br/><span className="text-emerald-700">Trouve où partir ce week-end.</span></h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">Choisis ta gare de départ et découvre les destinations TGV MAX disponibles. Ajoute un retour pour trouver des idées de week-end avec aller et retour, sans supplément sur les trains éligibles avec ton abonnement, sous réserve de disponibilité.</p>
         </div>
 
         <div id="recherche" className="mt-7 grid scroll-mt-4 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
@@ -573,7 +574,7 @@ export default function HomePage() {
         </section>}
 
         {mode === "explore" && !selectedExploreDestination && error && <div role="alert" className="mt-6 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
-        {mode === "explore" && !selectedExploreDestination && searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Recherche partielle : certains trajets peuvent manquer.{truncationReasons.length > 0 && <ul className="mt-2 list-disc pl-5">{truncationReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}</div>}
+        {mode === "explore" && !selectedExploreDestination && searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Nous n’avons pas pu vérifier tous les trajets. D’autres possibilités peuvent exister.{truncationReasons.length > 0 && <ul className="mt-2 list-disc pl-5">{truncationReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}</div>}
 
         <section
           id="search-results"
@@ -622,7 +623,7 @@ export default function HomePage() {
               {showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance" + (suppressedConnectionCount > 0 ? " (" + suppressedConnectionCount + ")" : "")}
             </button>}
           </div>}
-          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche est partielle : une limite de sécurité a été atteinte. Certains itinéraires peuvent manquer.
+          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>Nous n’avons pas pu vérifier tous les trajets. D’autres possibilités peuvent exister.
             {truncationReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{truncationReasons.map((reason, index) => <li key={reason + index}>{reason}</li>)}</ul>}
             <p className="mt-2">La pagination parcourt les résultats chargés ; elle ne récupère pas à elle seule les données manquantes.</p>
           </div>}
@@ -660,7 +661,7 @@ export default function HomePage() {
                   aria-expanded={isExpanded} aria-controls={"details-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
-                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer les " : "Voir les "}{matchingReturns.length} retour(s) compatible(s)</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
+                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
                 </div>
                 {isExpanded && <div id={"details-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
