@@ -446,7 +446,7 @@ export default function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pt-7 sm:px-6 sm:pt-10">
         <div className="max-w-2xl">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900"><Sparkles size={14}/> Open Data SNCF</div>
-          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Tu as TGV MAX ?<br/><span className="text-emerald-700">Trouve où partir ce week-end.</span></h1>
+          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Tu as TGV MAX ?<br/><span className="text-emerald-700"><span className="sm:hidden whitespace-nowrap text-[0.72em]">Pars ce week-end.</span><span className="hidden sm:inline">Trouve où partir ce week-end.</span></span></h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">Choisis ta gare de départ et découvre les destinations TGV MAX disponibles. Ajoute un retour pour trouver des idées de week-end avec aller et retour, sans supplément sur les trains éligibles avec ton abonnement, sous réserve de disponibilité.</p>
         </div>
 
