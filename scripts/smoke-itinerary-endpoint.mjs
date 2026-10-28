@@ -28,9 +28,18 @@ async function waitForServer() {
 
 async function main() {
   const pageSource = readFileSync("app/page.tsx", "utf8");
+  const apiSource = readFileSync("app/api/itineraries/route.ts", "utf8");
+  const mapSource = readFileSync("components/StationMap.tsx", "utf8");
   if (pageSource.includes('type="time"')) throw new Error("The app must use hour-only dropdowns, not the browser's hour/minute time picker.");
   if (!pageSource.includes("function HourSelect")) throw new Error("Reusable hour-only selector is missing.");
-  const diagnostic = { started_at: new Date().toISOString(), hourOnlySelectors: true };
+  if (!pageSource.includes('const [outEnd, setOutEnd] = useState("");') || !pageSource.includes('end: outEnd || "24:00"')) throw new Error("The outbound end time must be optional and treated as end of day.");
+  if (!pageSource.includes('const [returnEnd, setReturnEnd] = useState("");') || !pageSource.includes('params.set("returnEnd", returnEnd || "24:00")')) throw new Error("The return end time must be optional and treated as end of day.");
+  if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
+  if (!pageSource.includes("Autoriser les trajets avec correspondance") || !pageSource.includes("Je veux un retour TGV MAX")) throw new Error("The connection toggle and return label must be visible and clear.");
+  if (!apiSource.includes("const routeLimit = MAX_ROUTES;")) throw new Error("Explore route counts must not be capped at four routes per destination.");
+  if (!mapSource.includes("tile.openstreetmap.org") || !mapSource.includes('journey.changes === 0 ? "#16825d" : "#d97706"')) throw new Error("The map must use public OSM tiles and distinct direct/indirect colors.");
+  if (!mapSource.includes("if (!point || !next) return null;")) throw new Error("The map must not draw a false straight line across a station without coordinates.");
+  const diagnostic = { started_at: new Date().toISOString(), hourOnlySelectors: true, productBehaviorAssertions: true };
   try {
     await waitForServer();
     const url = new URL(base + "/api/itineraries");

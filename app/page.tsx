@@ -12,7 +12,7 @@ const StationMap = dynamic(() => import("@/components/StationMap"), {
 
 type TrainRecord = Record<string, unknown>;
 type Journey = { key: string; origin: string; destination: string; legs: TrainRecord[]; departure: string; arrival: string; departureMinutes: number; arrivalMinutes: number; durationMinutes: number; changes: number; returns: Journey[] };
-type MapJourney = { key: string; points: MapStation[] };
+type MapJourney = { key: string; points: Array<MapStation | null>; changes: number };
 const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0") + ":00");
 const END_HOURS = [...HOURS.slice(1), "24:00"];
 const RESULT_PAGE_SIZE = 12;
@@ -316,16 +316,15 @@ export default function HomePage() {
 
   const mapJourneys = useMemo(() => filtered.map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
-    const mapped = names.map(name => {
+    const points = names.map(name => {
       const city = mapCityName(name);
       return INITIAL_STATIONS.find(station => station.name === city) ?? null;
-    }).filter((station): station is MapStation => station !== null);
-    const points = mapped.filter((station, index) => index === 0 || station.name !== mapped[index - 1]?.name);
-    return { key: journey.key, points };
-  }).filter(journey => journey.points.length >= 2).map(({ key, points }, index) => {
-    const journey = filtered.find(item => item.key === key);
-    return { key, points, changes: journey?.changes ?? 0 };
-  }), [filtered]);
+    });
+    const hasDrawableLeg = points.some((point, index) =>
+      index < points.length - 1 && point !== null && points[index + 1] !== null
+    );
+    return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
+  }).filter(journey => journey.hasDrawableLeg).map(({ key, points, changes }) => ({ key, points, changes })), [filtered]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -491,7 +490,11 @@ export default function HomePage() {
             <div className="h-[360px] sm:h-[460px]">
               <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="explore"){setSelectedExploreDestination(name);setCurrentPage(1)}else{setDestination(name)}}}/>
             </div>
-            <div className="flex items-center gap-2 px-4 py-3 text-xs text-slate-500"><span className="h-2 w-2 rounded-full bg-emerald-700"/> Liaisons schématiques en lignes droites · carte OpenStreetMap</div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
+              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Direct</span>
+              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-amber-600"/> Avec correspondance</span>
+              <span className="text-slate-400">Lignes schématiques · OpenStreetMap</span>
+            </div>
           </section>
         </div>
 
