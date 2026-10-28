@@ -478,7 +478,7 @@ export async function GET(request: NextRequest) {
           });
           returnCache.set(destinationKey, matchingReturns);
         }
-        return { ...route, returns: matchingReturns };
+        return { ...route, returns: matchingReturns.filter(back => returnDate > date || back.departureMinutes > route.arrivalMinutes) };
       }).filter(route => route.returns.length > 0);
     }
 

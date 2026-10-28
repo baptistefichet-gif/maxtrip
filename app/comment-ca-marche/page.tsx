@@ -3,34 +3,10 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Database, GitBranch, Map
 import SiteHeader from "@/components/SiteHeader";
 
 const steps = [
-  {
-    number: "01",
-    icon: Search,
-    title: "Paramètre ta recherche",
-    body: "Choisis Explorer pour voir les destinations accessibles depuis une gare, ou Trajet classique pour viser une destination précise. Sélectionne ensuite la date et l’heure de départ.",
-    takeaway: "La fin de la plage est facultative : sans heure limite, MaxTrip cherche jusqu’à la fin de la journée."
-  },
-  {
-    number: "02",
-    icon: MapPinned,
-    title: "Explore les destinations",
-    body: "Après la recherche, MaxTrip regroupe les itinéraires distincts qu’il a réellement construits à partir des données chargées. Ouvre une destination depuis la carte ou la liste pour voir ses trajets.",
-    takeaway: "Un compteur correspond aux itinéraires construits, pas à une promesse d’exhaustivité lorsque la source est limitée."
-  },
-  {
-    number: "03",
-    icon: GitBranch,
-    title: "Compare directs et correspondances",
-    body: "Un direct ne comporte aucun changement. Un trajet avec correspondance comporte une ou plusieurs étapes, avec un temps de transfert contrôlé par le moteur.",
-    takeaway: "Un indirect redondant peut être masqué si un direct proche part à ±1 h et arrive plus tôt ou à la même heure. « Afficher aussi les autres correspondances » les rend toutes à nouveau visibles."
-  },
-  {
-    number: "04",
-    icon: CalendarDays,
-    title: "Vérifie le retour",
-    body: "Coche « Je veux un retour TGV MAX », puis indique sa date et sa plage horaire. MaxTrip inverse les gares et ne garde que les allers auxquels il associe au moins un retour compatible.",
-    takeaway: "Si le retour est obligatoire, un direct ne masque jamais un indirect lorsque ce direct n’a pas lui-même de retour compatible."
-  }
+  { number: "01", icon: Search, title: "Choisis ta recherche", body: "Avec Explorer, découvre où partir depuis ta gare. Avec Trajet classique, indique aussi ta destination. Choisis la date et la plage horaire de départ. Sans heure de fin, la recherche va jusqu’à la fin de la journée." },
+  { number: "02", icon: CalendarDays, title: "Ajoute tes options", body: "Active les trajets avec correspondance pour élargir les possibilités. Si tu veux un retour TGV MAX, coche l’option et indique sa date et ses horaires avant de rechercher." },
+  { number: "03", icon: MapPinned, title: "Compare les trajets trouvés", body: "Ouvre une destination depuis la carte ou la liste. Compare les horaires, la durée, les changements et les retours proposés. Vert : trajet direct. Orange : trajet avec correspondance. Les compteurs portent sur les trajets trouvés avec tes filtres." },
+  { number: "04", icon: TrainFront, title: "Vérifie et réserve", body: "MaxTrip propose des possibilités de voyage, mais ne réserve pas de billet. Vérifie les horaires, les gares et la disponibilité sur SNCF Connect, puis réserve les trains nécessaires pour l’aller et le retour." }
 ];
 
 export default function HowItWorksPage() {
@@ -45,24 +21,21 @@ export default function HowItWorksPage() {
         <div className="mt-6 max-w-3xl">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Guide MaxTrip · 4 étapes</p>
           <h1 className="mt-3 text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Comment ça marche&nbsp;?</h1>
-          <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">De la sélection de la gare à la vérification du retour, voici ce que MaxTrip recherche, ce qu’il compare et ce que ses résultats veulent dire.</p>
+          <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">Découvre comment rechercher, comparer et vérifier tes trajets TGV MAX.</p>
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {steps.map(({ number, icon: Icon, title, body, takeaway }) => (
+          {steps.map(({ number, icon: Icon, title, body }) => (
             <article key={number} className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:p-6">
               <span aria-hidden="true" className="absolute right-5 top-3 text-5xl font-black tracking-tighter text-slate-100">{number}</span>
               <div className="relative">
                 <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                   <Icon size={23} aria-hidden="true"/>
                 </div>
-                <p className="mt-5 text-xs font-black uppercase tracking-[0.16em] text-slate-400">Étape {number}</p>
+                
                 <h2 className="mt-2 text-xl font-black text-ink">{title}</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{body}</p>
-                <div className="mt-4 rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-navy">À retenir</p>
-                  <p className="mt-1 text-sm leading-5 text-slate-600">{takeaway}</p>
-                </div>
+                
               </div>
             </article>
           ))}
@@ -76,14 +49,15 @@ export default function HowItWorksPage() {
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-800">La règle de pertinence</p>
               <h2 id="connection-rule" className="mt-1 text-xl font-black text-emerald-950">Pourquoi certaines correspondances sont masquées&nbsp;?</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950/75">Le moteur ne supprime pas un itinéraire. Il réduit seulement le bruit lorsque plusieurs options mènent à la même destination.</p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-950/75">Une option avec correspondance peut être masquée par défaut lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure. « Afficher aussi les autres correspondances » réaffiche les alternatives trouvées.</p>
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">1. Même destination</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Le direct et l’indirect sont comparés destination par destination.</p></div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">2. Direct proche</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Le départ doit être dans une fenêtre de 60 minutes et l’arrivée au plus tardive.</p></div>
-            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">3. Retour préservé</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Avec un retour demandé, le direct doit aussi avoir un retour compatible.</p></div>
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">1. Même destination</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Les trajets sont comparés uniquement s’ils arrivent à la même gare.</p></div>
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">2. Trajet direct proche</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Le trajet direct part au maximum 60 minutes avant ou après le trajet avec correspondance et arrive plus tôt ou à la même heure.</p></div>
+            <div className="rounded-2xl border border-white/80 bg-white/70 p-4"><p className="font-bold text-emerald-950">3. Retour préservé</p><p className="mt-1 text-sm leading-5 text-emerald-950/70">Si un retour est demandé, le trajet direct doit également avoir un retour compatible.</p></div>
           </div>
+          <p className="mt-4 text-sm leading-6 text-emerald-950">Exemple : trajet direct 10 h 38 → 13 h 41 ; trajet avec correspondance 10 h 38 → 14 h 41. Le second est masqué par défaut, mais reste accessible. Cela ne garantit pas que toutes les possibilités SNCF ont été chargées.</p>
         </section>
 
         <div className="mt-8 grid gap-4 lg:grid-cols-2">
@@ -113,7 +87,7 @@ export default function HowItWorksPage() {
             <ul className="mt-5 list-disc space-y-2 pl-5 text-sm leading-5 text-amber-950/80">
               <li>Si une limite est atteinte ou si une page secondaire ne répond pas, MaxTrip affiche un message de recherche partielle.</li>
               <li>La pagination parcourt les itinéraires déjà chargés ; elle ne récupère pas les données qui n’ont pas pu être chargées.</li>
-              <li>Les changements de gare ne sont proposés que lorsqu’une règle de transfert fiable existe. À Paris, le moteur réserve au minimum une heure.</li>
+              <li>Les changements de gare sont proposés lorsqu’une marge de transfert est calculable. Cette marge ne garantit pas la réussite du changement.</li>
             </ul>
           </section>
         </div>

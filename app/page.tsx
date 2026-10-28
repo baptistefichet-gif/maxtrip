@@ -546,8 +546,8 @@ export default function HomePage() {
               <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{setSelected(name);if(mode==="explore"){setSelectedExploreDestination(name);setCurrentPage(1)}else{setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
-              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Direct</span>
-              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-amber-600"/> Avec correspondance</span>
+              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
+              <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-amber-600"/> Trajet avec correspondance</span>
               <span className="text-slate-400">Lignes schématiques · OpenStreetMap</span>
             </div>
           </section>
@@ -570,6 +570,9 @@ export default function HomePage() {
             </button>)}
           </div>
         </section>}
+
+        {mode === "explore" && !selectedExploreDestination && error && <div role="alert" className="mt-6 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
+        {mode === "explore" && !selectedExploreDestination && searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Recherche partielle : certains trajets peuvent manquer.{truncationReasons.length > 0 && <ul className="mt-2 list-disc pl-5">{truncationReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}</div>}
 
         <section
           id="search-results"
@@ -599,7 +602,7 @@ export default function HomePage() {
                 </button>
                 <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
                 <p className="mt-1 text-sm text-slate-600">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {filtered.length} itinéraire(s) distinct(s)</p>
-                {allowConnections && <p className="mt-2 text-xs text-slate-500">Les correspondances redondantes avec un direct proche et plus rapide sont masquées par défaut.</p>}
+                {allowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct proche arrive plus tôt ou à la même heure.</p>}
                 {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
               </div>
               <button type="button" aria-label="Fermer le détail de la destination" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
