@@ -62,26 +62,26 @@ export default function StationMap({
         }))}
         {originStation && <>
           <CircleMarker center={[originStation.lat, originStation.lon]} radius={22} interactive={false} pathOptions={{ stroke: false, fillColor: "#e8790c", fillOpacity: 0.08 }}/>
-          <CircleMarker center={[originStation.lat, originStation.lon]} radius={11} interactive={false} pathOptions={{ color: "#fff", weight: 3, fillColor: "#e8790c", fillOpacity: 1 }}>
+          <CircleMarker center={[originStation.lat, originStation.lon]} radius={13} interactive={false} pathOptions={{ color: "#fff", weight: 3, fillColor: "#e8790c", fillOpacity: 1 }}>
             <Tooltip direction="top" permanent>{originStation.name} · départ</Tooltip>
           </CircleMarker>
         </>}
         {visibleJourney && visibleJourney.points.slice(1, -1).map((station, index) => station ? (
           <Fragment key={visibleJourney.key + "-transfer-" + index}>
             <CircleMarker center={[station.lat, station.lon]} radius={20} interactive={false} pathOptions={{ stroke: false, fillColor: "#d97706", fillOpacity: 0.08 }}/>
-            <CircleMarker center={[station.lat, station.lon]} radius={10} interactive={false}
+            <CircleMarker center={[station.lat, station.lon]} radius={12} interactive={false}
               pathOptions={{ color: "#fff", weight: 3, fillColor: "#d97706", fillOpacity: 1 }}>
               <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
             </CircleMarker>
           </Fragment>
         ) : null)}
         {stations.map(station => <Fragment key={station.name}>
-          <CircleMarker center={[station.lat, station.lon]} radius={22}
+          <CircleMarker center={[station.lat, station.lon]} radius={28}
             pathOptions={{ color: selected === station.name ? "#14865c" : "#24486f", weight: 1, opacity: 0, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.02 }}
             eventHandlers={{ click: () => onSelect?.(station.name) }}>
             <Tooltip direction="top" permanent={selected === station.name} sticky>{station.name}{station.count ? " · " + station.count + " itinéraire(s)" : ""}</Tooltip>
           </CircleMarker>
-          <CircleMarker center={[station.lat, station.lon]} radius={selected === station.name ? 11 : 8} interactive={false}
+          <CircleMarker center={[station.lat, station.lon]} radius={selected === station.name ? 13 : 10} interactive={false}
             pathOptions={{ color: "#fff", weight: 3, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 1 }}/>
         </Fragment>)}
       </MapContainer>

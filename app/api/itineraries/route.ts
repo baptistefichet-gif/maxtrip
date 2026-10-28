@@ -21,7 +21,7 @@ type Journey = {
 const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const PAGE_SIZE = 100;
 const MAX_RECORDS = 5000;
-const MAX_CONNECTION_RECORDS_PER_QUERY = 500;
+const MAX_CONNECTION_RECORDS_PER_QUERY = 800;
 const MAX_ROUTES = 400;
 const CITY_PREFIXES = [
   "AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE",
@@ -187,7 +187,10 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
       return (ai < 0 ? 999 : ai) - (bi < 0 ? 999 : bi) || a.localeCompare(b, "fr");
     });
 
-    const stationLimit = depth === 0 ? 1 : (depth === 1 ? 16 : 8);
+    // A destination search needs enough real feeder stations to avoid hiding
+    // valid routes (notably Paris → Aix). Keep the cap bounded for Explore mode,
+    // but allow classic searches to inspect a wider set of candidates.
+    const stationLimit = depth === 0 ? 1 : (depth === 1 ? (preferredStations.length ? 32 : 24) : 12);
     const selectedStations = depth === 0 ? stations : stations.slice(0, stationLimit);
     if (stations.length > selectedStations.length) {
       truncated = true;
