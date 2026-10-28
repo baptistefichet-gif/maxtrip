@@ -20,8 +20,9 @@ type Journey = {
 
 const API_BASE = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const PAGE_SIZE = 100;
-const MAX_RECORDS = 3000;
-const MAX_ROUTES = 180;
+const MAX_RECORDS = 5000;
+const MAX_CONNECTION_RECORDS_PER_QUERY = 500;
+const MAX_ROUTES = 400;
 const CITY_PREFIXES = [
   "AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE",
   "MONTPELLIER", "STRASBOURG", "PERPIGNAN", "BESANCON", "MULHOUSE",
@@ -107,7 +108,7 @@ async function requestSNCF(url: string) {
   throw lastError instanceof Error ? lastError : new Error("Échec réseau vers l'API SNCF.");
 }
 
-async function fetchWhere(where: string) {
+async function fetchWhere(where: string, maxRecords = MAX_RECORDS) {
   const firstUrl = new URL(API_BASE);
   firstUrl.searchParams.set("where", where);
   firstUrl.searchParams.set("limit", String(PAGE_SIZE));
@@ -117,7 +118,7 @@ async function fetchWhere(where: string) {
   if (!firstResponse.ok) throw new Error("SNCF HTTP " + firstResponse.status + " pour une recherche de segments MAX.");
   const firstData = await firstResponse.json();
   const total = typeof firstData.total_count === "number" ? firstData.total_count : PAGE_SIZE;
-  const pageCount = Math.min(Math.ceil(total / PAGE_SIZE), Math.ceil(MAX_RECORDS / PAGE_SIZE));
+  const pageCount = Math.min(Math.ceil(total / PAGE_SIZE), Math.ceil(maxRecords / PAGE_SIZE));
   const records: TrainRecord[] = Array.isArray(firstData.results) ? firstData.results : [];
 
   for (let batchStart = 1; batchStart < pageCount; batchStart += 8) {
@@ -134,7 +135,16 @@ async function fetchWhere(where: string) {
     }));
     for (const rows of pages) records.push(...rows);
   }
-  return { records: records.slice(0, MAX_RECORDS), total, truncated: total > MAX_RECORDS };
+
+  const truncated = total > maxRecords;
+  return {
+    records: records.slice(0, maxRecords),
+    total,
+    truncated,
+    truncationReasons: truncated
+      ? ["Une requête SNCF a renvoyé " + total + " enregistrements ; la limite traitée pour cette requête est de " + maxRecords + "."]
+      : []
+  };
 }
 
 async function getRelevantTrains(date: string, roots: string[], direction: "origine" | "destination", maxLegs: number, preferredStations: string[] = []) {
@@ -143,6 +153,7 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
   let frontier = Array.from(new Set(roots.filter(Boolean)));
   let sourceCount = 0;
   let truncated = false;
+  const truncationReasons = new Set<string>();
 
   // Load every page only for the selected starting point. For connection levels,
   // load a bounded first page from a small set of likely transfer stations so the
@@ -178,7 +189,10 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
 
     const stationLimit = depth === 0 ? 1 : (depth === 1 ? 16 : 8);
     const selectedStations = depth === 0 ? stations : stations.slice(0, stationLimit);
-    if (stations.length > selectedStations.length) truncated = true;
+    if (stations.length > selectedStations.length) {
+      truncated = true;
+      truncationReasons.add("Le nombre de gares candidates pour les correspondances a été limité à " + selectedStations.length + " à cette étape.");
+    }
 
     // Use smaller ODSQL OR-groups at connection levels to keep individual payloads bounded.
     const batchSize = depth === 0 ? 1 : 4;
@@ -193,17 +207,13 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
         rows = rootResult.records;
         total = rootResult.total;
         truncated = truncated || rootResult.truncated;
+        for (const reason of rootResult.truncationReasons) truncationReasons.add(reason);
       } else {
-        const batchUrl = new URL(API_BASE);
-        batchUrl.searchParams.set("where", where);
-        batchUrl.searchParams.set("limit", String(PAGE_SIZE));
-        batchUrl.searchParams.set("offset", "0");
-        const response = await requestSNCF(batchUrl.toString());
-        if (!response.ok) throw new Error("SNCF HTTP " + response.status + " pendant la recherche d'itinéraires.");
-        const data = await response.json();
-        rows = Array.isArray(data.results) ? data.results : [];
-        total = typeof data.total_count === "number" ? data.total_count : rows.length;
-        if (total > rows.length) truncated = true;
+        const connectionResult = await fetchWhere(where, MAX_CONNECTION_RECORDS_PER_QUERY);
+        rows = connectionResult.records;
+        total = connectionResult.total;
+        truncated = truncated || connectionResult.truncated;
+        for (const reason of connectionResult.truncationReasons) truncationReasons.add(reason);
       }
       sourceCount += total;
       allRecords.push(...rows);
@@ -214,6 +224,7 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
       }
       if (allRecords.length >= MAX_RECORDS) {
         truncated = true;
+        truncationReasons.add("Le plafond global de " + MAX_RECORDS + " enregistrements a été atteint.");
         break;
       }
     }
@@ -222,7 +233,16 @@ async function getRelevantTrains(date: string, roots: string[], direction: "orig
   }
 
   const deduplicated = Array.from(new Map(allRecords.map(record => [trainKey(record), record])).values());
-  return { records: deduplicated.slice(0, MAX_RECORDS), total: sourceCount, truncated: truncated || deduplicated.length > MAX_RECORDS };
+  if (deduplicated.length > MAX_RECORDS) {
+    truncated = true;
+    truncationReasons.add("Le nombre global d'enregistrements uniques dépasse le plafond de " + MAX_RECORDS + ".");
+  }
+  return {
+    records: deduplicated.slice(0, MAX_RECORDS),
+    total: sourceCount,
+    truncated,
+    truncationReasons: Array.from(truncationReasons)
+  };
 }
 
 function makeJourneys(records: TrainRecord[], origin: string, destination: string | null, options: {
@@ -344,12 +364,13 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
   return found.sort((a, b) => a.departureMinutes - b.departureMinutes || a.durationMinutes - b.durationMinutes);
 }
 
-function combineTrainSets(...sets: Array<{ records: TrainRecord[]; total: number; truncated: boolean }>) {
+function combineTrainSets(...sets: Array<{ records: TrainRecord[]; total: number; truncated: boolean; truncationReasons?: string[] }>) {
   const records = Array.from(new Map(sets.flatMap(set => set.records).map(record => [trainKey(record), record])).values());
   return {
     records,
     total: sets.reduce((sum, set) => sum + set.total, 0),
-    truncated: sets.some(set => set.truncated)
+    truncated: sets.some(set => set.truncated),
+    truncationReasons: Array.from(new Set(sets.flatMap(set => set.truncationReasons ?? [])))
   };
 }
 
@@ -399,6 +420,7 @@ export async function GET(request: NextRequest) {
       ? combineTrainSets(outboundRootData, targetArrivalData)
       : outboundRootData;
 
+    const truncationReasons = new Set<string>(outboundData.truncationReasons ?? []);
     let routes = makeJourneys(outboundData.records, origin, destination, {
       start, end, maxLegs,
       minWait, maxWait, indirectOnly
@@ -416,6 +438,7 @@ export async function GET(request: NextRequest) {
         returnData = combineTrainSets(returnArrivalData, returnDepartureData);
       }
 
+      for (const reason of returnData.truncationReasons ?? []) truncationReasons.add("Retour : " + reason);
       const returnStartMinutes = returnStart;
       const returnEndMinutes = returnEnd;
       const returnCache = new Map<string, Journey[]>();
@@ -441,6 +464,7 @@ export async function GET(request: NextRequest) {
       return departure >= start && departure <= end;
     });
 
+    if (routes.length >= MAX_ROUTES) truncationReasons.add("Le moteur a atteint sa limite de " + MAX_ROUTES + " itinéraires construits.");
     return NextResponse.json({
       debug: {
         directRouteCount,
@@ -459,7 +483,8 @@ export async function GET(request: NextRequest) {
       totalRoutes: routes.length,
       sourceCount: outboundData.total,
       recordsLoaded: outboundData.records.length,
-      truncated: outboundData.truncated || routes.length >= MAX_ROUTES,
+      truncated: truncationReasons.size > 0 || routes.length >= MAX_ROUTES,
+      truncationReasons: Array.from(truncationReasons),
       returnRequired,
       fetched_at: new Date().toISOString(),
       source: "SNCF Open Data"

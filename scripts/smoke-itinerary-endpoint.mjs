@@ -1,3 +1,4 @@
+import { applyConnectionRelevance } from "../lib/route-relevance.mjs";
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
@@ -35,10 +36,34 @@ async function main() {
   if (!pageSource.includes('const [outEnd, setOutEnd] = useState("");') || !pageSource.includes('end: outEnd || "24:00"')) throw new Error("The outbound end time must be optional and treated as end of day.");
   if (!pageSource.includes('const [returnEnd, setReturnEnd] = useState("");') || !pageSource.includes('params.set("returnEnd", returnEnd || "24:00")')) throw new Error("The return end time must be optional and treated as end of day.");
   if (!pageSource.includes("destinationSummaries") || !pageSource.includes("selectedExploreDestination")) throw new Error("Explore mode must show distinct destination counts and filter by selected destination.");
-  if (!pageSource.includes("const relevantJourneys = useMemo") ||
-      !pageSource.includes("departureDifference <= 60 && direct.arrivalMinutes <= candidate.arrivalMinutes") ||
-      !pageSource.includes("Afficher aussi les autres correspondances")) {
-    throw new Error("Redundant indirect itineraries should be hidden by default when a nearby direct arrives no later, with an opt-in to show all alternatives.");
+  if (!pageSource.includes("applyConnectionRelevance") ||
+      !pageSource.includes("Afficher aussi les autres correspondances") ||
+      !mapSource.includes("radius={22}") ||
+      !mapSource.includes("interactive={true}") ) {
+    throw new Error("Shared relevance rule, explicit alternative access, and enlarged touch targets must exist.");
+  }
+  const direct = { key: "direct-aix", origin: "PARIS (intramuros)", destination: "AIX EN PROVENCE TGV", departureMinutes: 638, arrivalMinutes: 821, changes: 0, returns: [{ key: "back-direct" }] };
+  const redundantIndirect = { key: "indirect-aix", origin: "PARIS (intramuros)", destination: "AIX EN PROVENCE TGV", departureMinutes: 638, arrivalMinutes: 881, changes: 1, returns: [{ key: "back-indirect" }] };
+  const prunedFixture = applyConnectionRelevance([direct, redundantIndirect], { enabled: true });
+  if (prunedFixture.visible.length !== 1 || prunedFixture.visible[0].key !== direct.key || prunedFixture.suppressed[0]?.key !== redundantIndirect.key) {
+    throw new Error("The real-user example (Paris–Aix: direct 10:38–13:41 vs indirect 10:38–14:41) must hide the slower indirect by default.");
+  }
+  const fasterIndirect = { ...redundantIndirect, key: "faster-indirect", departureMinutes: 650, arrivalMinutes: 800 };
+  if (!applyConnectionRelevance([direct, fasterIndirect], { enabled: true }).visible.some(route => route.key === fasterIndirect.key)) {
+    throw new Error("An indirect that arrives earlier than the direct must remain visible.");
+  }
+  const farIndirect = { ...redundantIndirect, key: "far-indirect", departureMinutes: 700 };
+  if (!applyConnectionRelevance([direct, farIndirect], { enabled: true }).visible.some(route => route.key === farIndirect.key)) {
+    throw new Error("An indirect outside the +/- 60 minute departure window must remain visible.");
+  }
+  const directNoReturn = { ...direct, returns: [] };
+  const indirectWithReturn = { ...redundantIndirect, returns: [{ key: "back-available" }] };
+  const returnAware = applyConnectionRelevance([directNoReturn, indirectWithReturn], { enabled: true, returnRequired: true });
+  if (!returnAware.visible.some(route => route.key === indirectWithReturn.key)) {
+    throw new Error("An indirect with a compatible return must not be hidden by a direct without a compatible return.");
+  }
+  if (applyConnectionRelevance([direct, redundantIndirect], { enabled: true, showAllConnections: true }).visible.length !== 2) {
+    throw new Error("The explicit show-all option must preserve all alternatives.");
   }
   if (!pageSource.includes('role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}') ||
       !pageSource.includes("Toutes les destinations") ||
@@ -83,6 +108,33 @@ async function main() {
     diagnostic.timeBoundaryChecks = { endOfDay24Accepted: response.ok, invertedRangeRejected: invalidRangeResponse.status === 400 };
     diagnostic.payload = data;
     if (!response.ok) throw new Error("Itinerary endpoint returned HTTP " + response.status + ": " + body.slice(0, 500));
+    const liveRuleResult = applyConnectionRelevance(data.routes, { enabled: true, showAllConnections: false, returnRequired: false, toleranceMinutes: 60 });
+    const liveSuppressed = liveRuleResult.suppressed;
+    const expectedSuppressed = liveSuppressed.every(candidate => data.routes.some(direct =>
+      direct.changes === 0 &&
+      String(direct.destination).normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().startsWith(String(candidate.destination).normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().slice(0, Math.min(5, String(candidate.destination).length))) &&
+      Math.abs(direct.departureMinutes - candidate.departureMinutes) <= 60 &&
+      direct.arrivalMinutes <= candidate.arrivalMinutes
+    ));
+    if (!expectedSuppressed) throw new Error("A suppressed live route could not be justified by the documented direct-comparison rule.");
+    diagnostic.realDataRelevance = {
+      evaluationDate: "2026-10-29",
+      routesFromLiveSNCFData: data.routes.length,
+      directRoutes: data.routes.filter(route => route.changes === 0).length,
+      indirectRoutes: data.routes.filter(route => route.changes > 0).length,
+      suppressedAsRedundant: liveSuppressed.length,
+      visibleAfterRule: liveRuleResult.visible.length,
+      sampleSuppressed: liveSuppressed.slice(0, 5).map(route => ({
+        origin: route.origin, destination: route.destination, departure: route.departure,
+        arrival: route.arrival, changes: route.changes,
+        directComparator: data.routes.find(direct => direct.changes === 0 &&
+          Math.abs(direct.departureMinutes - route.departureMinutes) <= 60 &&
+          direct.arrivalMinutes <= route.arrivalMinutes &&
+          String(direct.destination).toLocaleUpperCase("fr-FR") === String(route.destination).toLocaleUpperCase("fr-FR")
+        )?.key ?? null
+      })),
+      completeRuleApplied: true
+    };
     if (!Array.isArray(data.routes)) throw new Error("Itinerary endpoint omitted the routes array.");
     if (typeof data.sourceCount !== "number" || typeof data.recordsLoaded !== "number") {
       throw new Error("Itinerary endpoint omitted source count metadata.");
@@ -192,6 +244,22 @@ async function main() {
       } : null
     };
     if (returnData.routes.length === 0) throw new Error("No outbound itinerary had a compatible return for the tested date and evening window.");
+    const liveRoundTripRule = applyConnectionRelevance(returnData.routes, { enabled: true, showAllConnections: false, returnRequired: true, toleranceMinutes: 60 });
+    for (const removed of liveRoundTripRule.suppressed) {
+      const matchingDirect = returnData.routes.find(route => route.changes === 0 &&
+        String(route.destination).toLocaleUpperCase("fr-FR") === String(removed.destination).toLocaleUpperCase("fr-FR") &&
+        Math.abs(route.departureMinutes - removed.departureMinutes) <= 60 &&
+        route.arrivalMinutes <= removed.arrivalMinutes);
+      if (!matchingDirect || !Array.isArray(matchingDirect.returns) || matchingDirect.returns.length === 0) {
+        throw new Error("Return-required relevance rule suppressed an indirect without a direct that also has a compatible return.");
+      }
+    }
+    diagnostic.roundTripRelevanceRule = {
+      routesWithRequiredReturns: returnData.routes.length,
+      routesSuppressedAsRedundant: liveRoundTripRule.suppressed.length,
+      routesVisibleByDefault: liveRoundTripRule.visible.length,
+      everySuppressedRouteHasDirectWithCompatibleReturn: true
+    };
     for (const route of returnData.routes) {
       if (!Array.isArray(route.returns) || route.returns.length === 0) {
         throw new Error("The return-required search returned an itinerary without compatible return legs.");

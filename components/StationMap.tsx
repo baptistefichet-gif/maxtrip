@@ -60,18 +60,28 @@ export default function StationMap({
           return <Polyline key={journey.key + "-leg-" + index} positions={[[point.lat, point.lon], [next.lat, next.lon]]}
             pathOptions={{ color: journey.changes === 0 ? "#16825d" : "#d97706", weight: journey.key === selectedJourneyKey ? 4 : 2, opacity: journey.key === selectedJourneyKey ? 0.95 : 0.35 }}/>;
         }))}
-        {originStation && <CircleMarker center={[originStation.lat, originStation.lon]} radius={9} pathOptions={{ color: "#fff", weight: 2, fillColor: "#e8790c", fillOpacity: 1 }}><Tooltip direction="top" permanent>{originStation.name} · départ</Tooltip></CircleMarker>}
+        {originStation && <>
+          <CircleMarker center={[originStation.lat, originStation.lon]} radius={22} interactive={false} pathOptions={{ stroke: false, fillColor: "#e8790c", fillOpacity: 0.08 }}/>
+          <CircleMarker center={[originStation.lat, originStation.lon]} radius={11} interactive={false} pathOptions={{ color: "#fff", weight: 3, fillColor: "#e8790c", fillOpacity: 1 }}>
+            <Tooltip direction="top" permanent>{originStation.name} · départ</Tooltip>
+          </CircleMarker>
+        </>}
         {visibleJourney && visibleJourney.points.slice(1, -1).map((station, index) => station ? (
-          <CircleMarker key={visibleJourney.key + "-transfer-" + index} center={[station.lat, station.lon]} radius={7}
-            pathOptions={{ color: "#fff", weight: 2, fillColor: "#e89b18", fillOpacity: 1 }}>
-            <Tooltip direction="top">Correspondance {index + 1} · {station.name}</Tooltip>
+          <CircleMarker key={visibleJourney.key + "-transfer-hit-" + index} center={[station.lat, station.lon]} radius={20} interactive={false} pathOptions={{ stroke: false, fillColor: "#d97706", fillOpacity: 0.08 }}/>
+          <CircleMarker key={visibleJourney.key + "-transfer-" + index} center={[station.lat, station.lon]} radius={10} interactive={false}
+            pathOptions={{ color: "#fff", weight: 3, fillColor: "#d97706", fillOpacity: 1 }}>
+            <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
           </CircleMarker>
         ) : null)}
-        {stations.map(station => <CircleMarker key={station.name} center={[station.lat, station.lon]} radius={selected === station.name ? 8 : 5}
-          pathOptions={{ color: "#fff", weight: 2, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.96 }}
-          eventHandlers={{ click: () => onSelect?.(station.name) }}>
-          <Tooltip direction="top">{station.name}{station.count ? " · " + station.count + " itinéraire(s)" : ""}</Tooltip>
-        </CircleMarker>)}
+        {stations.map(station => <g key={station.name}>
+          <CircleMarker center={[station.lat, station.lon]} radius={22}
+            pathOptions={{ color: selected === station.name ? "#14865c" : "#24486f", weight: 1, opacity: 0, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 0.02 }}
+            eventHandlers={{ click: () => onSelect?.(station.name) }}>
+            <Tooltip direction="top" permanent={selected === station.name} sticky>{station.name}{station.count ? " · " + station.count + " itinéraire(s)" : ""}</Tooltip>
+          </CircleMarker>
+          <CircleMarker center={[station.lat, station.lon]} radius={selected === station.name ? 11 : 8} interactive={false}
+            pathOptions={{ color: "#fff", weight: 3, fillColor: selected === station.name ? "#14865c" : "#24486f", fillOpacity: 1 }}/>
+        </g>)}
       </MapContainer>
     </div>
   );

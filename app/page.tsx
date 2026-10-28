@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
+import Link from "next/link";
+import { applyConnectionRelevance } from "@/lib/route-relevance.mjs";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
   ssr: false,
@@ -222,6 +224,7 @@ export default function HomePage() {
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [sourceTotal, setSourceTotal] = useState<number | null>(null);
   const [searchTruncated, setSearchTruncated] = useState(false);
+  const [truncationReasons, setTruncationReasons] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -229,6 +232,7 @@ export default function HomePage() {
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
+  const modalReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
@@ -270,37 +274,52 @@ export default function HomePage() {
   useEffect(() => {
     if (mode !== "explore" || !selectedExploreDestination) return;
     const previousOverflow = document.body.style.overflow;
+    modalReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
+    const focusFirstControl = () => {
+      const dialog = document.getElementById("search-results");
+      const first = dialog?.querySelector<HTMLElement>("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])");
+      first?.focus();
+    };
+    const frame = window.requestAnimationFrame(focusFirstControl);
+    const closeOnKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setSelectedExploreDestination(null);
         setSelectedJourneyKey(null);
         setExpandedTripKey(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const dialog = document.getElementById("search-results");
+      const controls = Array.from(dialog?.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])") ?? []);
+      if (!controls.length) return;
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", closeOnKeyDown);
     return () => {
       document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", closeOnEscape);
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", closeOnKeyDown);
+      modalReturnFocusRef.current?.focus();
     };
   }, [mode, selectedExploreDestination]);
 
-  const relevantJourneys = useMemo(() => {
-    if (showAllConnections || !allowConnections) return journeys;
-    return journeys.filter(candidate => {
-      if (candidate.changes === 0) return true;
-      const candidateDestination = normalizeText(mapCityName(candidate.destination) ?? candidate.destination);
-      const isDominatedByDirect = journeys.some(direct => {
-        if (direct.changes !== 0) return false;
-        const directDestination = normalizeText(mapCityName(direct.destination) ?? direct.destination);
-        if (directDestination !== candidateDestination) return false;
-        const departureDifference = Math.abs(direct.departureMinutes - candidate.departureMinutes);
-        // A direct at most one hour away that arrives no later makes the indirect option redundant.
-        return departureDifference <= 60 && direct.arrivalMinutes <= candidate.arrivalMinutes;
-      });
-      return !isDominatedByDirect;
-    });
-  }, [journeys, showAllConnections, allowConnections]);
+  const relevanceResult = useMemo(() => applyConnectionRelevance(journeys, {
+    enabled: allowConnections,
+    showAllConnections,
+    returnRequired: returnEnabled,
+    toleranceMinutes: 60
+  }), [journeys, showAllConnections, allowConnections, returnEnabled]);
+  const relevantJourneys = relevanceResult.visible;
+  const suppressedConnectionCount = relevanceResult.suppressed.length;
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
@@ -329,7 +348,7 @@ export default function HomePage() {
     return Array.from(summaries.values())
       .map(({ label, count }) => ({ label, count }))
       .sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
-  }, [journeys]);
+  }, [relevantJourneys]);
 
   const originMapStation = useMemo(() => {
     const city = mapCityName(origin);
@@ -379,6 +398,7 @@ export default function HomePage() {
     setRecords([]);
     setCurrentPage(1);
     setSearchTruncated(false);
+    setTruncationReasons([]);
     setReturnRecords([]);
     setSelected(null);
     setSelectedJourneyKey(null);
@@ -404,6 +424,7 @@ export default function HomePage() {
       setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
       setLastFetch(data.fetched_at || new Date().toISOString());
       setSearchTruncated(Boolean(data.truncated));
+      setTruncationReasons(Array.isArray(data.truncationReasons) ? data.truncationReasons.filter((reason: unknown): reason is string => typeof reason === "string") : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue pendant la recherche.");
     } finally {
@@ -420,21 +441,27 @@ export default function HomePage() {
       <header className="bg-navy text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint text-navy"><TrainFront size={25}/></div>
-            <div><div className="text-xl font-black tracking-tight">MaxTrip</div><div className="text-xs text-slate-300">Les voyages MAX à portée de main</div></div>
+            <Link href="/#recherche" className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint text-navy"><TrainFront size={25}/></div>
+              <div><div className="text-xl font-black tracking-tight">MaxTrip</div><div className="hidden text-xs text-slate-300 sm:block">Les voyages MAX à portée de main</div></div>
+            </Link>
           </div>
-          <span className="rounded-full border border-white/20 px-3 py-1 text-xs text-slate-100">Bêta privée</span>
+          <nav aria-label="Navigation principale" className="flex items-center gap-2 sm:gap-4">
+            <Link href="/#recherche" className="rounded-lg px-2 py-2 text-sm font-semibold text-white hover:bg-white/10 sm:px-3">Recherche</Link>
+            <Link href="/comment-ca-marche" className="rounded-lg px-2 py-2 text-sm font-semibold text-white hover:bg-white/10 sm:px-3">Comment ça marche</Link>
+            <span className="hidden rounded-full border border-white/20 px-3 py-1 text-xs text-slate-100 lg:inline-flex">Bêta privée</span>
+          </nav>
         </div>
       </header>
 
       <section className="mx-auto max-w-6xl px-4 pt-7 sm:px-6 sm:pt-10">
         <div className="max-w-2xl">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-900"><Sparkles size={14}/> Open Data SNCF</div>
-          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Pars où tu veux.<br/><span className="text-emerald-700">Cherche ton trajet MAX.</span></h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">Explore les destinations annoncées disponibles ou cherche un itinéraire précis, avec ou sans retour.</p>
+          <h1 className="text-3xl font-black leading-tight tracking-tight text-ink sm:text-5xl">Pars où tu veux.<br/><span className="text-emerald-700">Trouve tes trajets TGV MAX.</span></h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">Explore les destinations signalées disponibles ou trouve un itinéraire précis, avec ou sans correspondance et retour.</p>
         </div>
 
-        <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
+        <div id="recherche" className="mt-7 grid scroll-mt-4 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
           <section className="rounded-3xl bg-white p-4 shadow-soft sm:p-6">
             <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
               <button onClick={() => setMode("explore")} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${mode==="explore"?"bg-white text-navy shadow":"text-slate-500"}`}><Compass size={17}/>Explorer</button>
@@ -562,7 +589,7 @@ export default function HomePage() {
             mode === "explore" && !selectedExploreDestination
               ? "hidden"
               : mode === "explore" && selectedExploreDestination
-                ? "fixed inset-0 z-[2000] overflow-y-auto bg-slate-950/50 p-2 sm:p-6"
+                ? "fixed inset-0 z-[2000] overflow-y-auto overscroll-contain bg-slate-950/50 p-0 sm:p-6"
                 : "mt-6 scroll-mt-4"
           }
           onClick={event => {
@@ -573,7 +600,7 @@ export default function HomePage() {
             }
           }}
         >
-          <div className={mode === "explore" && selectedExploreDestination ? "mx-auto my-2 max-w-5xl rounded-3xl bg-paper p-3 shadow-2xl sm:my-6 sm:p-6" : ""}>
+          <div className={mode === "explore" && selectedExploreDestination ? "mx-auto min-h-dvh max-w-5xl rounded-none bg-paper p-4 shadow-2xl sm:my-6 sm:min-h-0 sm:rounded-3xl sm:p-6" : ""}>
             {mode === "explore" && selectedExploreDestination && <div className="mb-5 flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
               <div className="min-w-0">
                 <button type="button" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="mb-3 inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">
@@ -598,10 +625,13 @@ export default function HomePage() {
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
             {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              {showAllConnections ? "Masquer les correspondances redondantes" : "Afficher aussi les autres correspondances"}
+              {showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres correspondances" + (suppressedConnectionCount > 0 ? " (" + suppressedConnectionCount + ")" : "")}
             </button>}
           </div>}
-          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche a atteint une limite de chargement des données SNCF : certains itinéraires peuvent manquer. Utilise la pagination pour parcourir les résultats disponibles.</div>}
+          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>La recherche est partielle : une limite de sécurité a été atteinte. Certains itinéraires peuvent manquer.
+            {truncationReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{truncationReasons.map((reason, index) => <li key={reason + index}>{reason}</li>)}</ul>}
+            <p className="mt-2">La pagination parcourt les résultats chargés ; elle ne récupère pas à elle seule les données manquantes.</p>
+          </div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les correspondances sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
@@ -619,7 +649,7 @@ export default function HomePage() {
               return <article key={tripKey + "-" + index} className={"rounded-2xl border bg-white p-4 shadow-sm sm:p-5 " + (selectedJourneyKey === tripKey ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200")}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-sm font-bold"><TrainFront size={17} className="text-emerald-700"/>{from} <span className="text-slate-400">→</span> {to}</div>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">{journey.changes === 0 ? "Direct" : journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
+                  <span className={"inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold " + (journey.changes === 0 ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-950")}>{journey.changes === 0 ? <TrainFront size={14}/> : <GitBranch size={14}/>} {journey.changes === 0 ? "Direct" : journey.changes + " correspondance(s)"} · MAX signalé disponible</span>
                 </div>
                 <p className="mt-2 text-xs font-medium text-slate-500"><CalendarDays size={13} className="mr-1 inline-block"/>{journeyDateLabel}</p>
                 <div className="mt-3 grid grid-cols-3 items-center gap-2">
