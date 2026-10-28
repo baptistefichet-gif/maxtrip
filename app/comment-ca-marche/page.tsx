@@ -24,7 +24,7 @@ export default function HowItWorksPage() {
           <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">Choisis une gare, découvre où partir avec TGV MAX et trouve un retour compatible pour organiser ton prochain week-end.</p>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5"><h2 className="text-lg font-black text-emerald-950">Une idée de week-end ?</h2><p className="mt-2 text-sm leading-6 text-emerald-950">Cherche un départ le vendredi et un retour le dimanche : MaxTrip te propose les destinations pour lesquelles il trouve un aller et un retour TGV MAX compatibles. Sur les trains éligibles, tu peux voyager sans supplément avec ton abonnement, sous réserve de disponibilité.</p></div>
+        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5"><h2 className="text-lg font-black text-emerald-950">Une envie de voyager ?</h2><p className="mt-2 text-sm leading-6 text-emerald-950">Cherche un départ le vendredi et un retour le dimanche : MaxTrip te propose les destinations pour lesquelles il trouve un aller et un retour TGV MAX compatibles. Sur les trains éligibles, tu peux voyager sans supplément avec ton abonnement, sous réserve de disponibilité.</p></div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {steps.map(({ number, icon: Icon, title, body }) => (
