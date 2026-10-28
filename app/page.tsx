@@ -586,7 +586,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -646,7 +646,7 @@ export default function HomePage() {
                 {allowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct proche arrive plus tôt ou à la même heure.</p>}
                 {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
               </div>
-              <button type="button" aria-label="Fermer le détail de la destination" onClick={() => { setSelectedExploreDestination(null); setSelectedJourneyKey(null); setExpandedTripKey(null); setCurrentPage(1); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
+              <button type="button" aria-label="Fermer le détail de la destination" onClick={closeDestinationDetails} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
                 <X size={20}/>
               </button>
             </div>}
