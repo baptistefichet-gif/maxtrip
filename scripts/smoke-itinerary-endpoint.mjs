@@ -4,7 +4,20 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 const port = 3141;
 const base = "http://127.0.0.1:" + port;
-const server = spawn("npm", ["run", "start", "--", "-p", String(port)], { stdio: "ignore", env: { ...process.env, PORT: String(port) } });
+const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", String(port)], {
+  stdio: ["ignore", "pipe", "pipe"],
+  env: { ...process.env, PORT: String(port) }
+});
+let serverOutput = "";
+let serverError = null;
+let serverExit = null;
+const captureServerOutput = chunk => {
+  serverOutput = (serverOutput + String(chunk)).slice(-12000);
+};
+server.stdout?.on("data", captureServerOutput);
+server.stderr?.on("data", captureServerOutput);
+server.once("error", error => { serverError = error; });
+server.once("exit", (code, signal) => { serverExit = { code, signal }; });
 let stopped = false;
 
 function stop() {
@@ -17,14 +30,24 @@ process.on("SIGINT", () => { stop(); process.exit(130); });
 
 async function waitForServer() {
   const until = Date.now() + 30000;
+  let lastStatus = null;
+  let lastFetchError = null;
   while (Date.now() < until) {
+    if (serverError || serverExit) {
+      const reason = serverError ? serverError.message : "exit code " + serverExit.code + (serverExit.signal ? " (" + serverExit.signal + ")" : "");
+      throw new Error("Next production server failed to start: " + reason + "\n" + serverOutput.trim());
+    }
     try {
       const response = await fetch(base, { signal: AbortSignal.timeout(2000) });
+      lastStatus = response.status;
       if (response.ok) return;
-    } catch {}
+    } catch (error) {
+      lastFetchError = error instanceof Error ? error.message : String(error);
+    }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error("Next production server did not become ready in time.");
+  const detail = serverOutput.trim() || (lastFetchError ? "last fetch error: " + lastFetchError : "");
+  throw new Error("Next production server did not become ready in time" + (lastStatus ? " (last HTTP status " + lastStatus + ")" : "") + ".\n" + detail);
 }
 
 async function main() {
