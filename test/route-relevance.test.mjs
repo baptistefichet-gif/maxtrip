@@ -40,9 +40,9 @@ test("keeps journeys to distinct stations of the same city", () => {
   assert.equal(result.suppressed.length, 0);
 });
 
-test("includes departures at exactly sixty minutes and excludes sixty-one", () => {
+test("includes departures at exactly sixty minutes and excludes earlier departures outside the window", () => {
   const atBoundary = { ...indirect(), departureMinutes: 660 };
-  const outside = { ...indirect(), key: "outside", departureMinutes: 661 };
+  const outside = { ...indirect(), key: "outside", departureMinutes: 539 };
   const result = applyConnectionRelevance([direct(), atBoundary, outside], { enabled: true });
   assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
   assert.ok(result.visible.some(route => route.key === "outside"));
@@ -51,4 +51,26 @@ test("includes departures at exactly sixty minutes and excludes sixty-one", () =
 test("keeps a faster journey with a connection", () => {
   const result = applyConnectionRelevance([direct(), { ...indirect(), arrivalMinutes: 779 }], { enabled: true });
   assert.equal(result.visible.length, 2);
+});
+
+
+test("hides a slower connection even when the direct leaves hours later", () => {
+  const laterDirect = { ...direct(), departureMinutes: 960, arrivalMinutes: 1080 };
+  const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
+  const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true });
+  assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
+});
+
+test("keeps earlier connection when direct departs later and arrives later", () => {
+  const laterDirect = { ...direct(), departureMinutes: 960, arrivalMinutes: 1200 };
+  const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
+  const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true });
+  assert.equal(result.suppressed.length, 0);
+});
+
+test("keeps connection if later direct has no compatible return", () => {
+  const laterDirect = { ...direct([]), departureMinutes: 960, arrivalMinutes: 1080 };
+  const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
+  const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true, returnRequired: true });
+  assert.deepEqual(result.visible.map(route => route.key), ["indirect"]);
 });

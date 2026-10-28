@@ -358,7 +358,11 @@ export default function HomePage() {
     toleranceMinutes: 60
   }), [journeys, showAllConnections, allowConnections, returnEnabled]);
   const relevantJourneys = relevanceResult.visible;
-  const suppressedConnectionCount = relevanceResult.suppressed.length;
+  const suppressedConnectionCount = useMemo(() => applyConnectionRelevance(journeys, {
+    enabled: allowConnections,
+    showAllConnections: false,
+    returnRequired: returnEnabled
+  }).suppressed.length, [journeys, allowConnections, returnEnabled]);
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
@@ -643,7 +647,7 @@ export default function HomePage() {
                 </button>
                 <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
                 <p className="mt-1 text-sm text-slate-600">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {filtered.length} itinéraire(s) distinct(s)</p>
-                {allowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct proche arrive plus tôt ou à la même heure.</p>}
+                {allowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure, même s’il part plus tard.</p>}
                 {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
               </div>
               <button type="button" aria-label="Fermer le détail de la destination" onClick={closeDestinationDetails} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
@@ -658,8 +662,8 @@ export default function HomePage() {
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
-            {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-              {showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance" + (suppressedConnectionCount > 0 ? " (" + suppressedConnectionCount + ")" : "")}
+            {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+              {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
           {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>Nous n’avons pas pu vérifier tous les trajets. D’autres possibilités peuvent exister.

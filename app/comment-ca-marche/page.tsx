@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
             <GitBranch size={24} className="mt-1 shrink-0 text-emerald-700" aria-hidden="true"/>
             <div>
               <h2 id="connection-rule" className="text-xl font-black text-emerald-950">Pourquoi certains trajets avec correspondance ne s’affichent pas tout de suite&nbsp;?</h2>
-              <p className="mt-3 text-sm leading-6 text-emerald-950">Quand un trajet direct vers la même gare part à peu près à la même heure et arrive plus tôt, MaxTrip le met en avant pour simplifier les résultats. Tu peux toujours retrouver les autres possibilités avec le bouton « Afficher aussi les autres trajets avec correspondance ».</p>
+              <p className="mt-3 text-sm leading-6 text-emerald-950">Quand un trajet direct vers la même gare arrive plus tôt, MaxTrip peut le mettre en avant, même s’il part plus tard. Tu peux toujours retrouver les autres possibilités avec le bouton « Afficher aussi les autres trajets avec correspondance ».</p>
               <p className="mt-2 text-sm leading-6 text-emerald-950">Si tu as demandé un retour, MaxTrip tient aussi compte des retours disponibles.</p>
             </div>
           </div>
