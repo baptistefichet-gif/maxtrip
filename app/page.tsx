@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
+import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
 import { applyConnectionRelevance } from "@/lib/route-relevance.mjs";
 
@@ -438,21 +439,7 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-paper pb-12">
-      <header className="bg-navy text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link href="/#recherche" className="flex items-center gap-3 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-mint text-navy"><TrainFront size={25}/></div>
-              <div><div className="text-xl font-black tracking-tight">MaxTrip</div><div className="hidden text-xs text-slate-300 sm:block">Les voyages MAX à portée de main</div></div>
-            </Link>
-          </div>
-          <nav aria-label="Navigation principale" className="flex items-center gap-2 sm:gap-4">
-            <Link href="/#recherche" className="rounded-lg px-2 py-2 text-sm font-semibold text-white hover:bg-white/10 sm:px-3">Recherche</Link>
-            <Link href="/comment-ca-marche" className="rounded-lg px-2 py-2 text-sm font-semibold text-white hover:bg-white/10 sm:px-3">Comment ça marche</Link>
-            <span className="hidden rounded-full border border-white/20 px-3 py-1 text-xs text-slate-100 lg:inline-flex">Bêta privée</span>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader active="search"/>
 
       <section className="mx-auto max-w-6xl px-4 pt-7 sm:px-6 sm:pt-10">
         <div className="max-w-2xl">
