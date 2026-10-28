@@ -1,0 +1,37 @@
+name: Benchmark 64 vs 128 transfer stations
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - name: Run real SNCF benchmark
+        run: node scripts/benchmark-transfer-candidates.mjs
+      - name: Upload metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transfer-benchmark
+          path: diagnostics/transfer-benchmark.*
+          if-no-files-found: ignore
+      - name: Publish report as PR comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f diagnostics/transfer-benchmark.md ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file diagnostics/transfer-benchmark.md
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "Benchmark failed before producing metrics; see Actions."
+          fi
