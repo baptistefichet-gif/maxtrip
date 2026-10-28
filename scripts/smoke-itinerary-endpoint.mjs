@@ -39,7 +39,8 @@ async function main() {
   if (!pageSource.includes("applyConnectionRelevance") ||
       !pageSource.includes("Afficher aussi les autres correspondances") ||
       !mapSource.includes("radius={22}") ||
-      !mapSource.includes("interactive={true}") ) {
+      !mapSource.includes("interactive={true}") ||
+      !mapSource.includes("eventHandlers={{ click: () => onSelect?.(station.name) }}") ) {
     throw new Error("Shared relevance rule, explicit alternative access, and enlarged touch targets must exist.");
   }
   const direct = { key: "direct-aix", origin: "PARIS (intramuros)", destination: "AIX EN PROVENCE TGV", departureMinutes: 638, arrivalMinutes: 821, changes: 0, returns: [{ key: "back-direct" }] };
