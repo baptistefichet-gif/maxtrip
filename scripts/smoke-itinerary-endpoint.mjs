@@ -65,10 +65,11 @@ async function main() {
   if (applyConnectionRelevance([direct, redundantIndirect], { enabled: true, showAllConnections: true }).visible.length !== 2) {
     throw new Error("The explicit show-all option must preserve all alternatives.");
   }
+  const hidesInlineExploreResults = pageSource.includes('mode === "explore" && !selectedExploreDestination') && pageSource.includes('"hidden"');
   if (!pageSource.includes('role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}') ||
       !pageSource.includes("Toutes les destinations") ||
       !pageSource.includes('aria-label="Fermer le détail de la destination"') ||
-      !pageSource.includes('className="hidden"')) {
+      !hidesInlineExploreResults) {
     throw new Error("In Explore mode, selecting a destination must open an accessible detail dialog and hide the inline results behind it.");
   }
   if (!pageSource.includes('event.key === "Escape"') || !pageSource.includes("document.body.style.overflow = \"hidden\"")) {
