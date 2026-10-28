@@ -100,6 +100,9 @@ async function main() {
   }
   if (!pageSource.includes("Autoriser les trajets avec correspondance") || !pageSource.includes("Je veux un retour TGV MAX")) throw new Error("The connection toggle and return label must be visible and clear.");
   if (!apiSource.includes("const routeLimit = MAX_ROUTES;")) throw new Error("Explore route counts must not be capped at four routes per destination.");
+  if (!apiSource.includes("SNCF_REQUEST_TIMEOUT_MS") || !apiSource.includes("MAX_CONNECTION_BATCHES_IN_FLIGHT") || !apiSource.includes("Promise.allSettled")) {
+    throw new Error("SNCF page loading must be time-bounded, partially recoverable, and bounded in parallelism.");
+  }
   if (!mapSource.includes("tile.openstreetmap.org") || !mapSource.includes('journey.changes === 0 ? "#16825d" : "#d97706"')) throw new Error("The map must use public OSM tiles and distinct direct/indirect colors.");
   if (!mapSource.includes("if (!point || !next) return null;")) throw new Error("The map must not draw a false straight line across a station without coordinates.");
   const diagnostic = { started_at: new Date().toISOString(), hourOnlySelectors: true, productBehaviorAssertions: true };
