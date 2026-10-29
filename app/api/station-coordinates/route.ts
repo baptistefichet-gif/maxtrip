@@ -70,7 +70,7 @@ export async function GET() {
         const key = stationKey(name);
         const prior = secondaryNames.get(key);
         if (prior && (Math.abs(prior.lat - point.lat) > 0.005 || Math.abs(prior.lon - point.lon) > 0.005)) ambiguous.add(key);
-        else if (!prior) secondaryNames.set(key, { lat: point.lat, lon: point.lon });
+        else if (!prior) secondaryNames.set(key, { lat: Number(point.lat), lon: Number(point.lon) });
       }
       for (const [key, point] of secondaryNames) {
         if (!ambiguous.has(key) && !coordinates[key]) coordinates[key] = point;
