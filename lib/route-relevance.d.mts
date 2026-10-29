@@ -18,3 +18,5 @@ export function applyConnectionRelevance<T extends JourneyForRelevance>(
   journeys: T[],
   options?: RelevanceOptions
 ): { visible: T[]; suppressed: T[] };
+
+export function withinMaximumJourneyDuration(journey: { durationMinutes: number }, maximumMinutes?: number): boolean;
