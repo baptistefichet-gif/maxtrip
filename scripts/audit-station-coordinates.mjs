@@ -3,6 +3,7 @@ import { stationKey, stationCoordinatesFor } from "../lib/station-geocoding.mjs"
 
 const TGV = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/tgvmax/records";
 const GEO = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/gares-de-voyageurs/records";
+const GEO_SECONDARY = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/liste-des-gares/records";
 async function request(url, retries=3) {
   let last;
   for (let i=0;i<retries;i++) {
@@ -38,7 +39,18 @@ async function geodata() {
   }
   return {all,total};
 }
-const [origins,destinations,geo]=await Promise.all([grouped("origine"),grouped("destination"),geodata()]);
+const [origins,destinations,geo,secondary]=await Promise.all([grouped("origine"),grouped("destination"),geodata(),(async()=>{
+ const first=await request(GEO_SECONDARY+"?limit=100&offset=0");
+ const total=first.total_count;
+ if(!Number.isInteger(total)||total>10000)throw Error("Unexpected secondary count");
+ const all=[...first.results];
+ for(let offset=100;offset<total;offset+=100){
+   const data=await request(GEO_SECONDARY+"?limit=100&offset="+offset);
+   if(!Array.isArray(data.results)||data.results.length!==Math.min(100,total-offset))throw Error("Incomplete secondary page "+offset);
+   all.push(...data.results);
+ }
+ return {all,total};
+})()]);
 const catalog=[...new Set([...origins,...destinations])].sort((a,b)=>a.localeCompare(b,"fr"));
 const coords={},conflicts=new Set();
 for(const row of geo.all){
@@ -51,18 +63,29 @@ for(const row of geo.all){
   else if(!coords[key])coords[key]={lat:point.lat,lon:point.lon};
 }
 for(const key of conflicts)delete coords[key];
+const secondaryNames=new Map(),secondaryConflicts=new Set();
+for(const row of secondary.all){
+ if(String(row.voyageurs??"").toUpperCase()!=="O")continue;
+ const raw=row.geo_point_2d??row.c_geo;
+ const point=Array.isArray(raw)?{lat:Number(raw[0]),lon:Number(raw[1])}:raw;
+ if(!row.libelle||!point||!Number.isFinite(point.lat)||!Number.isFinite(point.lon))continue;
+ const key=stationKey(row.libelle),prior=secondaryNames.get(key);
+ if(prior&&(Math.abs(prior.lat-point.lat)>0.005||Math.abs(prior.lon-point.lon)>0.005))secondaryConflicts.add(key);
+ else if(!prior)secondaryNames.set(key,point);
+}
+for(const [key,point] of secondaryNames)if(!secondaryConflicts.has(key)&&!coords[key])coords[key]=point;
 const groupings=catalog.filter(x=>stationKey(x).includes("INTRAMUROS"));
 const physical=catalog.filter(x=>!stationKey(x).includes("INTRAMUROS"));
 const resolved=[],missing=[];
 for(const name of physical) (stationCoordinatesFor(name,coords)?resolved:missing).push(name);
-const summary={generatedAt:new Date().toISOString(),catalogTotal:catalog.length,origins:origins.size,destinations:destinations.size,physical:physical.length,groupings:groupings.length,geographicRecords:geo.total,geographicNames:Object.keys(coords).length,ambiguousGeographicNames:[...conflicts].sort(),matched:resolved.length,unmatched:missing.length,coverage:physical.length?Number((100*resolved.length/physical.length).toFixed(2)):null,missingStations:missing,groupingNames:groupings};
+const summary={generatedAt:new Date().toISOString(),catalogTotal:catalog.length,origins:origins.size,destinations:destinations.size,physical:physical.length,groupings:groupings.length,geographicRecords:geo.total,secondaryRecords:secondary.total,geographicNames:Object.keys(coords).length,ambiguousGeographicNames:[...conflicts].sort(),matched:resolved.length,unmatched:missing.length,coverage:physical.length?Number((100*resolved.length/physical.length).toFixed(2)):null,missingStations:missing,groupingNames:groupings};
 mkdirSync("diagnostics",{recursive:true});
 writeFileSync("diagnostics/station-coverage.json",JSON.stringify(summary,null,2)+"\n");
 writeFileSync("diagnostics/station-coverage.md",[
  "# MaxTrip — Audit de couverture GPS", "",
  "Source : catalogue TGV MAX et référentiel SNCF Gares de voyageurs, récupérés en direct.", "",
  "| Indicateur | Valeur |","|---|---:|",
- ...[["Gares distinctes",summary.catalogTotal],["Gares physiques",summary.physical],["Regroupements intramuros",summary.groupings],["Gares physiques reconnues",summary.matched],["Gares physiques non reconnues",summary.unmatched],["Couverture GPS",summary.coverage+" %"],["Noms géographiques ambigus",summary.ambiguousGeographicNames.length]].map(([k,v])=>"| "+k+" | "+v+" |"),
+ ...[["Gares distinctes",summary.catalogTotal],["Gares physiques",summary.physical],["Regroupements intramuros",summary.groupings],["Référentiel SNCF Réseau",summary.secondaryRecords],["Gares physiques reconnues",summary.matched],["Gares physiques non reconnues",summary.unmatched],["Couverture GPS",summary.coverage+" %"],["Noms géographiques ambigus",summary.ambiguousGeographicNames.length]].map(([k,v])=>"| "+k+" | "+v+" |"),
  "","## Gares sans correspondance",...missing.map(x=>"- "+x),
  "","## Noms géographiques ambigus",...summary.ambiguousGeographicNames.map(x=>"- "+x),
  "","## Regroupements intramuros",...groupings.map(x=>"- "+x)
