@@ -433,7 +433,7 @@ export default function HomePage() {
     }).filter((station): station is MapStation & { count: number } => station !== null);
   }, [filtered, stationCoordinates]);
 
-  const mapJourneys = useMemo(() => filtered.map(journey => {
+  const mapJourneys = useMemo(() => filtered.filter(journey => mode !== "classic" || (normalizeText(journey.origin) === normalizeText(origin) && normalizeText(journey.destination) === normalizeText(destination))).map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
     const points = names.map(name => {
       return stationMapPoint(name);
@@ -442,7 +442,7 @@ export default function HomePage() {
       index < points.length - 1 && point !== null && points[index + 1] !== null
     );
     return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
-  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [filtered, stationCoordinates]);
+  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [filtered, stationCoordinates, mode, origin, destination]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
