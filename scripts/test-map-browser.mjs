@@ -18,6 +18,7 @@ try{
   try{
    for(const width of [320,375,390,768,1024,1280,1920]){
     const page=await browser.newPage({viewport:{width,height:850},deviceScaleFactor:1});
+    page.setDefaultTimeout(8000);
     try{
      await page.route("**/api/stations",route=>route.fulfill({json:{origins:["PARIS (intramuros)"],destinations:["LYON PART DIEU"]}}));
      await page.route("**/api/station-coordinates",route=>route.fulfill({json:{coordinates:{"LYON PART DIEU":{lat:45.7606,lon:4.8619}}}}));
