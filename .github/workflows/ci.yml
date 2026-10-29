@@ -25,6 +25,16 @@ jobs:
         run: npm install
       - name: Run unit tests
         run: npm test
+      - name: Update Vaul lockfile on this feature branch
+        if: github.event_name == 'pull_request' && github.head_ref == 'feature/vaul-mobile-map-sheet'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Lock Vaul dependency tree"
+            git push origin HEAD:feature/vaul-mobile-map-sheet
+          fi
       - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
