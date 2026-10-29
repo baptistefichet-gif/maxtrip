@@ -23,6 +23,8 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install
+      - name: Run unit tests
+        run: npm test
       - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
