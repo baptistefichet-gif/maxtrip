@@ -7,6 +7,7 @@ import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
 import { applyConnectionRelevance, countHiddenAlternatives } from "@/lib/route-relevance.mjs";
+import { stationCoordinatesFor, stationKey } from "@/lib/station-geocoding.mjs";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
   ssr: false,
@@ -406,8 +407,8 @@ export default function HomePage() {
   }, []);
 
   const stationMapPoint = (name: string): MapStation | null => {
-    const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-    const exact = stationCoordinates[key];
+    const key = stationKey(name);
+    const exact = stationCoordinatesFor(name, stationCoordinates);
     if (exact) return { name, lat: exact.lat, lon: exact.lon };
     // Only city-wide groupings use a city centroid, never an unrelated station.
     if (!key.includes("INTRAMUROS")) return null;
