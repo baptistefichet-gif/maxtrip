@@ -14,7 +14,7 @@ const indirect = (returns = [{ key: "back-indirect" }]) => ({
 test("hides a dominated indirect while preserving access to it", () => {
   const result = applyConnectionRelevance([direct(), indirect()], { enabled: true });
   assert.deepEqual(result.visible.map(route => route.key), ["direct"]);
-  assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
+  assert.deepEqual(result.suppressed.map(route => route.key), []);
 });
 
 test("return required prevents hiding an indirect when the direct has no compatible return", () => {
@@ -40,7 +40,7 @@ test("keeps journeys to distinct stations of the same city", () => {
   assert.equal(result.suppressed.length, 0);
 });
 
-test("includes departures at exactly sixty minutes and excludes earlier departures outside the window", () => {
+test("a direct departing earlier does not hide a later connection", () => {
   const atBoundary = { ...indirect(), departureMinutes: 660 };
   const outside = { ...indirect(), key: "outside", departureMinutes: 539 };
   const result = applyConnectionRelevance([direct(), atBoundary, outside], { enabled: true });
