@@ -236,6 +236,8 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapSheetExpanded, setMapSheetExpanded] = useState(false);
+  const mapSheetTouchStart = useRef<number | null>(null);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -455,7 +457,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mapExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
+      if (event.key === "Escape") { setMapExpanded(false); setMapSheetExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -624,10 +626,10 @@ export default function HomePage() {
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
               <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
-              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
+              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapSheetExpanded(false); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapSheetExpanded(false);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -644,7 +646,25 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className="absolute bottom-3 left-3 right-3 z-[1100] flex max-h-[48%] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] lg:w-[380px]">
+            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[max-height] duration-200 ease-out sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "max-h-full rounded-t-2xl" : "max-h-[48%] rounded-t-2xl")}>
+              <div className="shrink-0 bg-white sm:hidden">
+                <button type="button" aria-label={mapSheetExpanded ? "Réduire le panneau des trajets" : "Agrandir le panneau des trajets"} aria-expanded={mapSheetExpanded}
+                  onClick={() => setMapSheetExpanded(value => !value)}
+                  onTouchStart={event => { mapSheetTouchStart.current = event.touches[0]?.clientY ?? null; }}
+                  onTouchEnd={event => {
+                    const start = mapSheetTouchStart.current;
+                    mapSheetTouchStart.current = null;
+                    if (start === null) return;
+                    const delta = event.changedTouches[0]?.clientY - start;
+                    if (delta === undefined || Math.abs(delta) < 45) return;
+                    event.preventDefault();
+                    setMapSheetExpanded(delta < 0);
+                  }}
+                  className="flex w-full touch-none flex-col items-center gap-1 px-4 pb-2 pt-3 text-xs font-semibold text-emerald-800">
+                  <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-300"/>
+                  <span>{mapSheetExpanded ? "Glisser vers le bas pour réduire" : "Glisser vers le haut pour agrandir"}</span>
+                </button>
+              </div>
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
