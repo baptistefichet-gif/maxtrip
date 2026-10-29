@@ -29,3 +29,17 @@ test("different station names never match merely because they share a city", () 
     "AIX EN PROVENCE TGV": { lat: 43.4, lon: 5.2 }
   }), null);
 });
+
+test("documented physical-station fallbacks are used when absent from SNCF lookup", () => {
+  assert.deepEqual(stationCoordinatesFor("AIX EN PROVENCE TGV", {}), { lat: 43.455, lon: 5.31722 });
+  assert.deepEqual(stationCoordinatesFor("MARSEILLE ST CHARLES", {}), { lat: 43.30306, lon: 5.38111 });
+  assert.deepEqual(stationCoordinatesFor("TGV HAUTE PICARDIE", {}), { lat: 49.85917, lon: 2.83167 });
+});
+test("SNCF coordinates take priority over fallback values", () => {
+  const official = { lat: 43.3031, lon: 5.3812 };
+  assert.deepEqual(stationCoordinatesFor("MARSEILLE ST CHARLES", { "MARSEILLE ST CHARLES": official }), official);
+});
+test("city groupings are never mapped to a physical station fallback", () => {
+  assert.equal(stationCoordinatesFor("PARIS (intramuros)", {}), null);
+  assert.equal(stationCoordinatesFor("LYON (intramuros)", {}), null);
+});
