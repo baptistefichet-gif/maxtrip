@@ -46,7 +46,7 @@ export default function StationMap({
   const drawnJourneys = visibleJourney ? [visibleJourney] : visibleDestination ? (journeys ?? []).filter(journey => journey.destinationLabel === visibleDestination) : [];
   return (
     <div className="h-full min-h-[360px] w-full">
-      <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} zoomControl={false} scrollWheelZoom={false} preferCanvas>
+      <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} zoomControl={false} scrollWheelZoom preferCanvas>
         <ZoomControl position="topright" />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -55,7 +55,7 @@ export default function StationMap({
           updateWhenIdle
           keepBuffer={3}
         />
-        <FitStations stations={visibleJourney ? visibleJourney.points.filter((point): point is MapStation => point !== null) : fitStations}/>
+        <FitStations stations={fitStations}/>
         {drawnJourneys.map(journey => journey.points.slice(0, -1).map((point, index) => {
           const next = journey.points[index + 1];
           if (!point || !next) return null;
