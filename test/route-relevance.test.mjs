@@ -12,7 +12,7 @@ const indirect = (returns = [{ key: "back-indirect" }]) => ({
 });
 
 test("hides a dominated indirect while preserving access to it", () => {
-  const result = applyConnectionRelevance([direct(), indirect()], { enabled: true });
+  const result = applyConnectionRelevance([direct(), { ...indirect(), departureMinutes: 615 }], { enabled: true });
   assert.deepEqual(result.visible.map(route => route.key), ["direct"]);
   assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
 });

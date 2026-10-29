@@ -665,9 +665,10 @@ export default function HomePage() {
                   {mapSelectedTripKey === journey.key && <div className="space-y-2 border-t border-emerald-100 bg-emerald-50/50 p-3">
                     <p className="text-xs font-bold text-emerald-900">Détail de l'itinéraire</p>
                     {journey.legs.map((leg, index) => <div key={journey.key + "-leg-" + index} className="rounded-lg border border-emerald-100 bg-white p-2.5">
-                      <p className="text-[11px] font-semibold uppercase text-emerald-800">Train {index + 1}</p>
+                      <p className="text-[11px] font-semibold uppercase text-emerald-800">Train {index + 1}{getField(leg, ["train_no", "train_number"]) && " · N° " + getField(leg, ["train_no", "train_number"])}</p>
                       <p className="mt-1 text-xs font-semibold text-slate-900">{getPlace(leg, "origin")} → {getPlace(leg, "destination")}</p>
                       <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
+                      {index < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
                     <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Voir le trajet et les retours compatibles</button>
                   </div>}
