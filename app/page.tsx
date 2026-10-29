@@ -406,7 +406,7 @@ export default function HomePage() {
   }, []);
 
   const stationMapPoint = (name: string): MapStation | null => {
-    const key = name.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\\s+/g, " ");
+    const key = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\s+/g, " ");
     const exact = stationCoordinates[key];
     if (exact) return { name, lat: exact.lat, lon: exact.lon };
     // Only city-wide groupings use a city centroid, never an unrelated station.
