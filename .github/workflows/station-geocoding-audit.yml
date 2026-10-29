@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+  pull-requests: write
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -23,3 +24,8 @@ jobs:
           name: station-geocoding-audit
           path: diagnostics/station-coverage.*
           if-no-files-found: ignore
+      - name: Post GPS report on PR 16
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment 16 --body-file diagnostics/station-coverage.md
