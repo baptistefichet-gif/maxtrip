@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
@@ -624,7 +624,7 @@ export default function HomePage() {
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
               <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
-              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapExpanded(true); }} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte des destinations">Agrandir la carte</button></div>
+              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
             </div>
             <div className="h-[360px] sm:h-[460px]">
               <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
@@ -645,7 +645,7 @@ export default function HomePage() {
           <div className="min-h-[180px] flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
           </div>
-          {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && <div className="shrink-0 overflow-x-auto border-t border-slate-200 bg-slate-50 px-4 py-2"><p className="mb-2 text-xs text-slate-600">Destinations sans coordonnées vérifiées (sélection possibles ici) :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">{item.label} ({item.count})</button>)}</div></div>}
+          {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && <div className="shrink-0 overflow-x-auto border-t border-slate-200 bg-slate-50 px-4 py-2"><p className="mb-2 text-xs text-slate-600">Destinations sans coordonnées vérifiées (sélection possibles ici) :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">{item.label} ({item.count})</button>)}</div></div>}
           {mapSelectedDestination && <div className="max-h-[42vh] min-h-[160px] shrink-0 overflow-y-auto border-t border-emerald-200 bg-white p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-bold">{mapSelectedDestination} · {mapDestinationJourneys.length} trajet(s) disponible(s)</h3><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="text-sm font-semibold text-emerald-800">Tout afficher</button></div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
