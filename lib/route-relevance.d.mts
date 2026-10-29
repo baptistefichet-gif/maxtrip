@@ -18,3 +18,7 @@ export function applyConnectionRelevance<T extends JourneyForRelevance>(
   journeys: T[],
   options?: RelevanceOptions
 ): { visible: T[]; suppressed: T[] };
+
+export function countHiddenAlternatives<T extends { destination: string }>(
+  suppressed: T[], destinationLabel: string | null, getLabel: (destination: string) => string
+): number;

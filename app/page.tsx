@@ -6,7 +6,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown,
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
-import { applyConnectionRelevance } from "@/lib/route-relevance.mjs";
+import { applyConnectionRelevance, countHiddenAlternatives } from "@/lib/route-relevance.mjs";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
   ssr: false,
