@@ -1,0 +1,37 @@
+name: Six live relevance scenarios
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  live-relevance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/test-live-relevance-six.mjs
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relevance-live-six
+          path: diagnostics/relevance-live-six.*
+          if-no-files-found: ignore
+      - name: Post report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f diagnostics/relevance-live-six.md ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file diagnostics/relevance-live-six.md
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "Live test failed before producing report."
+          fi
