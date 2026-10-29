@@ -45,15 +45,19 @@ export async function GET() {
       const secondaryFirst = await firstSecondary.json();
       const secondaryTotal = Math.min(10000, Number(secondaryFirst.total_count) || 0);
       const secondaryRows: Row[] = Array.isArray(secondaryFirst.results) ? secondaryFirst.results : [];
-      for (let offset = 100; offset < secondaryTotal; offset += 100) {
-        const url = secondaryApi + "?limit=100&offset=" + offset;
-        try {
-          const res = await fetch(url, { next: { revalidate: 86400 }, signal: AbortSignal.timeout(12000) });
+      const offsets = Array.from({ length: Math.max(0, Math.ceil(secondaryTotal / 100) - 1) }, (_, i) => (i + 1) * 100);
+      for (let i = 0; i < offsets.length; i += 8) {
+        const wave = await Promise.allSettled(offsets.slice(i, i + 8).map(async offset => {
+          const res = await fetch(secondaryApi + "?limit=100&offset=" + offset, { next: { revalidate: 86400 }, signal: AbortSignal.timeout(12000) });
           if (!res.ok) throw new Error("HTTP " + res.status);
           const json = await res.json();
           if (!Array.isArray(json.results)) throw new Error("Missing station rows");
-          secondaryRows.push(...json.results as Row[]);
-        } catch { secondaryMissingPages++; secondaryComplete = false; }
+          return json.results as Row[];
+        }));
+        wave.forEach(item => {
+          if (item.status === "fulfilled") secondaryRows.push(...item.value);
+          else { secondaryMissingPages++; secondaryComplete = false; }
+        });
       }
       const secondaryNames = new Map<string, { lat: number; lon: number }>();
       const ambiguous = new Set<string>();

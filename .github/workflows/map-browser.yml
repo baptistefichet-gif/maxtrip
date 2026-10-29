@@ -16,7 +16,7 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm install --no-save playwright@1.58.2
-      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright install chromium webkit
       - run: npm run build
       - run: node scripts/test-map-browser.mjs
       - name: Upload browser screenshots and report
