@@ -49,6 +49,15 @@ jobs:
           cat diagnostics/build.log
           echo "$build_status" > diagnostics/build-exit-code.txt
           exit "$build_status"
+      - name: Publish build errors for Vaul PR
+        if: always() && github.event_name == 'pull_request' && github.head_ref == 'feature/vaul-mobile-map-sheet'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f diagnostics/build.log ]; then
+            tail -n 45 diagnostics/build.log > diagnostics/build-tail.txt
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file diagnostics/build-tail.txt
+          fi
       - name: Smoke-test itinerary search against live SNCF data
         run: node scripts/smoke-itinerary-endpoint.mjs
       - name: Upload build and API diagnostics
