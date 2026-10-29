@@ -445,8 +445,8 @@ export default function HomePage() {
     const hasDrawableLeg = points.some((point, index) =>
       index < points.length - 1 && point !== null && points[index + 1] !== null
     );
-    return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
-  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [relevantJourneys, stationCoordinates, mode, origin, destination]);
+    return { key: journey.key, points, changes: journey.changes, destinationLabel: mapCityName(journey.destination) ?? journey.destination, hasDrawableLeg };
+  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes, destinationLabel }) => ({ key, points, changes, destinationLabel })), [relevantJourneys, stationCoordinates, mode, origin, destination]);
 
   const mapDestinationJourneys = useMemo(() => mapSelectedDestination
     ? relevantJourneys.filter(journey => normalizeText(mapCityName(journey.destination) ?? journey.destination) === normalizeText(mapSelectedDestination))

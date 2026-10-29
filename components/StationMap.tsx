@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo } from "react";
 import type { LatLngExpression } from "leaflet";
 
 export type MapStation = { name: string; lat: number; lon: number; count?: number };
-export type MapJourney = { key: string; points: Array<MapStation | null>; changes: number };
+export type MapJourney = { key: string; points: Array<MapStation | null>; changes: number; destinationLabel?: string };
 
 function FitStations({ stations }: { stations: MapStation[] }) {
   const map = useMap();
@@ -43,7 +43,7 @@ export default function StationMap({
     return Array.from(new Map(all.map(station => [station.name, station])).values());
   }, [originStation, stations]);
   const visibleJourney = journeys?.find(journey => journey.key === selectedJourneyKey);
-  const drawnJourneys = visibleJourney ? [visibleJourney] : visibleDestination ? (journeys ?? []).filter(journey => journey.points.at(-1)?.name === visibleDestination) : [];
+  const drawnJourneys = visibleJourney ? [visibleJourney] : visibleDestination ? (journeys ?? []).filter(journey => journey.destinationLabel === visibleDestination) : [];
   return (
     <div className="h-full min-h-[360px] w-full">
       <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
