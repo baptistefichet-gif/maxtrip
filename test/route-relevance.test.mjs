@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyConnectionRelevance, selectDiverseJourneys } from "../lib/route-relevance.mjs";
+import { applyConnectionRelevance, selectDiverseJourneys, countHiddenAlternatives, withinMaximumJourneyDuration } from "../lib/route-relevance.mjs";
 
 const direct = (returns = [{ key: "back-direct" }]) => ({
   key: "direct", destination: "AIX EN PROVENCE TGV", changes: 0,
@@ -85,4 +85,14 @@ test("destination coverage is preserved before adding extra routes", () => {
   assert.equal(new Set(selected.map(j => j.destination)).size, 3);
   assert.equal(selected.length, 4);
   assert.equal(selected[0].key, "lyon0");
+});
+
+test("7 hour maximum is inclusive", () => {
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: 420 }), true);
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: 421 }), false);
+});
+test("hidden alternative count matches selected destination", () => {
+  const routes = [{destination:"NARBONNE"},{destination:"LYON"},{destination:"LYON"}];
+  assert.equal(countHiddenAlternatives(routes, "Narbonne", value => value), 1);
+  assert.equal(countHiddenAlternatives(routes, "Lyon", value => value), 2);
 });
