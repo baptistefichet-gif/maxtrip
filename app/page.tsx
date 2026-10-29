@@ -234,6 +234,8 @@ export default function HomePage() {
   const [lastFetch, setLastFetch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
+  const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
@@ -421,19 +423,19 @@ export default function HomePage() {
 
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
-    for (const journey of filtered) {
+    for (const journey of relevantJourneys) {
       const city = mapCityName(journey.destination);
       if (!city) continue;
       names.set(city, (names.get(city) || 0) + 1);
     }
     return Array.from(names, ([name, count]) => {
-      const matchingJourney = filtered.find(journey => mapCityName(journey.destination) === name);
+      const matchingJourney = relevantJourneys.find(journey => mapCityName(journey.destination) === name);
       const station = matchingJourney ? stationMapPoint(matchingJourney.destination) : null;
       return station ? { ...station, name, count } : null;
     }).filter((station): station is MapStation & { count: number } => station !== null);
-  }, [filtered, stationCoordinates]);
+  }, [relevantJourneys, stationCoordinates]);
 
-  const mapJourneys = useMemo(() => filtered.filter(journey => mode !== "classic" || (normalizeText(journey.origin) === normalizeText(origin) && normalizeText(journey.destination) === normalizeText(destination))).map(journey => {
+  const mapJourneys = useMemo(() => relevantJourneys.filter(journey => mode !== "classic" || (normalizeText(journey.origin) === normalizeText(origin) && normalizeText(journey.destination) === normalizeText(destination))).map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
     const points = names.map(name => {
       return stationMapPoint(name);
@@ -442,7 +444,20 @@ export default function HomePage() {
       index < points.length - 1 && point !== null && points[index + 1] !== null
     );
     return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
-  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [filtered, stationCoordinates, mode, origin, destination]);
+  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [relevantJourneys, stationCoordinates, mode, origin, destination]);
+
+  const mapDestinationJourneys = useMemo(() => mapSelectedDestination
+    ? relevantJourneys.filter(journey => normalizeText(mapCityName(journey.destination) ?? journey.destination) === normalizeText(mapSelectedDestination))
+    : [], [relevantJourneys, mapSelectedDestination]);
+
+  useEffect(() => {
+    if (!mapExpanded) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mapExpanded]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -607,10 +622,10 @@ export default function HomePage() {
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
               <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
+              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapExpanded(true); }} className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte des destinations">Agrandir la carte</button></div>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -619,6 +634,25 @@ export default function HomePage() {
             </div>
           </section>
         </div>
+
+        {mapExpanded && <section role="dialog" aria-modal="true" aria-label="Carte agrandie des destinations" className="fixed inset-0 z-[2100] flex flex-col bg-white">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+            <div><h2 className="text-lg font-black">Carte des destinations</h2><p className="text-xs text-slate-600">Clique sur une ville pour voir ses trajets disponibles.</p></div>
+            <button type="button" onClick={() => { setMapExpanded(false); setMapSelectedDestination(null); }} className="rounded-lg border border-slate-300 px-4 py-2 font-semibold" aria-label="Fermer la carte agrandie">Fermer ✕</button>
+          </div>
+          <div className="min-h-0 flex-1">
+            <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={null} selected={mapSelectedDestination} onSelect={name => setMapSelectedDestination(name)}/>
+          </div>
+          {mapSelectedDestination && <div className="max-h-[42vh] shrink-0 overflow-y-auto border-t border-emerald-200 bg-white p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-bold">{mapSelectedDestination} · {mapDestinationJourneys.length} trajet(s) disponible(s)</h3><button type="button" onClick={() => setMapSelectedDestination(null)} className="text-sm font-semibold text-emerald-800">Masquer</button></div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {mapDestinationJourneys.map(journey => <button type="button" key={journey.key} onClick={() => { setMapExpanded(false); openDestinationDetails(mapSelectedDestination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="rounded-xl border border-slate-200 p-3 text-left hover:border-emerald-500 hover:bg-emerald-50">
+                <span className="block font-bold">{journey.departure} → {journey.arrival}</span>
+                <span className="text-xs text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
+              </button>)}
+            </div>
+          </div>}
+        </section>}
 
         {mode === "explore" && journeys.length > 0 && <section aria-label="Destinations possibles" className="mt-6 rounded-3xl bg-white p-4 shadow-soft sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-3">
