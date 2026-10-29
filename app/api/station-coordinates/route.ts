@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stationKey } from "@/lib/station-geocoding.mjs";
 export const revalidate = 86400;
+export const maxDuration = 60;
 const API = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/gares-de-voyageurs/records";
 type Row = Record<string, unknown>;
 export async function GET() {
