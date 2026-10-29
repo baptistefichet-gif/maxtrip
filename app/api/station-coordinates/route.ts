@@ -69,7 +69,7 @@ export async function GET() {
         if (!name || !point || !Number.isFinite(point.lat) || !Number.isFinite(point.lon)) continue;
         const key = stationKey(name);
         const prior = secondaryNames.get(key);
-        if (prior && (Math.abs(prior.lat - point.lat) > 0.005 || Math.abs(prior.lon - point.lon) > 0.005)) ambiguous.add(key);
+        if (prior && (Math.abs(prior.lat - Number(point.lat)) > 0.005 || Math.abs(prior.lon - Number(point.lon)) > 0.005)) ambiguous.add(key);
         else if (!prior) secondaryNames.set(key, { lat: Number(point.lat), lon: Number(point.lon) });
       }
       for (const [key, point] of secondaryNames) {
