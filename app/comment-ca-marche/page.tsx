@@ -3,9 +3,9 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Database, GitBranch, MapPinned, 
 import SiteHeader from "@/components/SiteHeader";
 
 const steps = [
-  { number: "01", icon: Search, title: "Choisis ton trajet", body: "Indique ta gare de départ et la date à laquelle tu veux voyager. Avec Explorer, découvre les destinations possibles. Avec Trajet classique, choisis directement où tu veux aller." },
-  { number: "02", icon: CalendarDays, title: "Ajoute tes préférences", body: "Choisis tes heures de départ. Tu peux aussi chercher des trajets avec correspondance et demander un retour TGV MAX." },
-  { number: "03", icon: MapPinned, title: "Regarde les résultats", body: "Compare les horaires et la durée des trajets. Un trajet direct se fait sans changer de train. Un trajet avec correspondance nécessite de changer de train en cours de route. Ouvre un trajet pour voir ses détails et, si tu as demandé un retour, les retours compatibles." },
+  { number: "01", icon: Search, title: "Choisis une gare et une date", body: "Indique ta gare de départ et ton jour de voyage. Avec Explorer, découvre les destinations TGV MAX trouvées depuis cette gare, sans avoir à les chercher une par une. Tu peux aussi choisir une arrivée précise avec Trajet classique." },
+  { number: "02", icon: CalendarDays, title: "Prépare ton aller-retour", body: "Choisis tes horaires et, si tu veux revenir, ajoute une date de retour. MaxTrip recherche les destinations pour lesquelles il trouve un aller et un retour compatibles, pratique pour partir en week-end." },
+  { number: "03", icon: MapPinned, title: "Explore la carte et les trajets", body: "Repère sur la carte les destinations trouvées, puis compare les horaires. Tu peux voir les trajets directs ou autoriser les trajets avec correspondance : MaxTrip combine alors des trains TGV MAX disponibles pour proposer d’autres possibilités, même si aucun direct disponible n’a été trouvé." },
   { number: "04", icon: TrainFront, title: "Vérifie et réserve", body: "Tu as trouvé un trajet qui te plaît ? Vérifie sa disponibilité sur SNCF Connect et réserve tes billets. MaxTrip t’aide à chercher, mais ne vend pas de billets." }
 ];
 
@@ -24,7 +24,7 @@ export default function HowItWorksPage() {
           <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">Choisis une gare, découvre où partir avec TGV MAX et trouve un retour compatible pour organiser ton prochain week-end.</p>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5"><h2 className="text-lg font-black text-emerald-950">Une envie de voyager ?</h2><p className="mt-2 text-sm leading-6 text-emerald-950">Cherche un départ le vendredi et un retour le dimanche : MaxTrip te propose les destinations pour lesquelles il trouve un aller et un retour TGV MAX compatibles. Sur les trains éligibles, tu peux voyager sans supplément avec ton abonnement, sous réserve de disponibilité.</p></div>
+        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 sm:p-5"><h2 className="text-lg font-black text-emerald-950">Une envie de voyager ?</h2><p className="mt-2 text-sm leading-6 text-emerald-950">Choisis simplement une gare de départ pour découvrir où voyager. Pour un week-end, cherche un aller le vendredi et un retour le dimanche : MaxTrip te montre les destinations avec des trajets compatibles. Avec ton abonnement, les trains TGV MAX éligibles sont sans supplément, sous réserve de disponibilité.</p></div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {steps.map(({ number, icon: Icon, title, body }) => (
@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
             <GitBranch size={24} className="mt-1 shrink-0 text-emerald-700" aria-hidden="true"/>
             <div>
               <h2 id="connection-rule" className="text-xl font-black text-emerald-950">Pourquoi certains trajets avec correspondance ne s’affichent pas tout de suite&nbsp;?</h2>
-              <p className="mt-3 text-sm leading-6 text-emerald-950">Quand un trajet direct vers la même gare arrive plus tôt, MaxTrip peut le mettre en avant, même s’il part plus tard. Tu peux toujours retrouver les autres possibilités avec le bouton « Afficher aussi les autres trajets avec correspondance ».</p>
+              <p className="mt-3 text-sm leading-6 text-emerald-950">Si un trajet direct vers la même gare permet de partir plus tard et d’arriver plus tôt, MaxTrip le privilégie. Les autres trajets avec correspondance restent accessibles avec le bouton des alternatives.</p>
               <p className="mt-2 text-sm leading-6 text-emerald-950">Si tu as demandé un retour, MaxTrip tient aussi compte des retours disponibles.</p>
             </div>
           </div>
