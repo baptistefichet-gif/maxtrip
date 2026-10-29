@@ -241,6 +241,7 @@ export default function HomePage() {
   const sheetWasDragged = useRef(false);
   const [mapSheetHeight, setMapSheetHeight] = useState<number | null>(null);
   const sheetDragStartHeight = useRef(48);
+  const sheetDragCurrentHeight = useRef(48);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -649,32 +650,40 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:transition-none sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[90%]" : "h-[48%]")} style={mapSheetHeight === null ? undefined : { height: mapSheetHeight + "%" }}>
-              <div className="flex shrink-0 items-center justify-center bg-white pt-2 sm:hidden">
-                <button type="button" aria-label={mapSheetExpanded ? "Replier le panneau des trajets" : "Développer le panneau des trajets"} aria-expanded={mapSheetExpanded}
-                  onClick={() => { if (sheetWasDragged.current) { sheetWasDragged.current = false; return; } setMapSheetExpanded(value => !value); setMapSheetHeight(null); }}
-                  onPointerDown={event => { sheetWasDragged.current = false; sheetDragStartY.current = event.clientY; sheetDragStartHeight.current = mapSheetHeight ?? (mapSheetExpanded ? 90 : 48); event.currentTarget.setPointerCapture(event.pointerId); }}
-                  onPointerMove={event => {
-                    const start = sheetDragStartY.current;
-                    if (start === null) return;
-                    const containerHeight = event.currentTarget.closest("aside")?.parentElement?.clientHeight || window.innerHeight;
-                    const delta = (start - event.clientY) / containerHeight * 100;
-                    if (Math.abs(event.clientY - start) > 5) sheetWasDragged.current = true;
-                    setMapSheetHeight(Math.max(30, Math.min(95, sheetDragStartHeight.current + delta)));
-                  }}
-                  onPointerUp={event => {
-                    const start = sheetDragStartY.current;
-                    sheetDragStartY.current = null;
-                    if (start === null) return;
-                    const distance = event.clientY - start;
-                    if (sheetWasDragged.current) setMapSheetExpanded((mapSheetHeight ?? sheetDragStartHeight.current) >= 68);
-                    setMapSheetHeight(null);
-                  }}
-                  onPointerCancel={() => { sheetDragStartY.current = null; setMapSheetHeight(null); }}
-                  className="flex h-11 w-full cursor-grab touch-none items-center justify-center rounded-full active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-emerald-700"
-                  title={mapSheetExpanded ? "Glisser vers le bas pour replier" : "Glisser vers le haut pour développer"}>
+            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[height] duration-200 ease-out sm:transition-none sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[90%]" : "h-[48%]")} style={mapSheetHeight === null ? undefined : { height: mapSheetHeight + "%" }}>
+              <div className="shrink-0 bg-white sm:hidden touch-none select-none cursor-grab active:cursor-grabbing"
+                onPointerDown={event => {
+                  if (event.target instanceof Element && event.target.closest("button")) return;
+                  sheetDragStartY.current = event.clientY;
+                  sheetDragStartHeight.current = mapSheetHeight ?? (mapSheetExpanded ? 90 : 48);
+                  sheetDragCurrentHeight.current = sheetDragStartHeight.current;
+                  sheetWasDragged.current = false;
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                }}
+                onPointerMove={event => {
+                  const start = sheetDragStartY.current;
+                  if (start === null) return;
+                  const containerHeight = event.currentTarget.closest("aside")?.parentElement?.clientHeight || window.innerHeight;
+                  const distance = event.clientY - start;
+                  if (Math.abs(distance) > 4) sheetWasDragged.current = true;
+                  const height = Math.max(30, Math.min(95, sheetDragStartHeight.current - distance / containerHeight * 100));
+                  sheetDragCurrentHeight.current = height;
+                  setMapSheetHeight(height);
+                }}
+                onPointerUp={() => {
+                  if (sheetDragStartY.current === null) return;
+                  sheetDragStartY.current = null;
+                  if (sheetWasDragged.current) setMapSheetExpanded(sheetDragCurrentHeight.current >= 68);
+                  setMapSheetHeight(null);
+                }}
+                onPointerCancel={() => { sheetDragStartY.current = null; setMapSheetHeight(null); }}>
+                <button type="button" aria-label={mapSheetExpanded ? "Replier le panneau des trajets" : "Développer le panneau des trajets"}
+                  aria-expanded={mapSheetExpanded}
+                  onClick={() => { setMapSheetExpanded(value => !value); setMapSheetHeight(null); }}
+                  className="flex h-10 w-full items-center justify-center touch-none focus-visible:outline-2 focus-visible:outline-emerald-700">
                   <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-300"/>
                 </button>
+                <div className="px-4 pb-1 text-center text-[11px] text-slate-500">Glisse le bandeau pour agrandir ou replier</div>
               </div>
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
                 <div className="min-w-0">
@@ -684,7 +693,7 @@ export default function HomePage() {
                 </div>
                 {mapSelectedDestination && <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Retour</button>}
               </div>
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-slate-50/80 p-3">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y bg-slate-50/80 p-3" style={{ WebkitOverflowScrolling: "touch" }}>
                 {!mapSelectedDestination && destinationSummaries.map(item => <button type="button" key={item.label} onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50">
                   <span className="truncate text-sm font-bold text-slate-900">{item.label}</span><span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">{item.count} trajet(s)</span>
                 </button>)}
