@@ -236,6 +236,8 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapSheetExpanded, setMapSheetExpanded] = useState(false);
+  const mapSheetTouchStartY = useRef<number | null>(null);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -624,10 +626,10 @@ export default function HomePage() {
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
               <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
-              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
+              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapSheetExpanded(false); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapSheetExpanded(false);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -644,14 +646,28 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className="absolute bottom-3 left-3 right-3 z-[1100] flex max-h-[48%] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] lg:w-[380px]">
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[height] duration-200 ease-out sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[calc(100dvh-100px)]" : "h-[48dvh] max-h-[460px]")}>
+              <div className="flex shrink-0 flex-col border-b border-slate-100 bg-white"
+                onTouchStart={event => { mapSheetTouchStartY.current = event.touches[0]?.clientY ?? null; }}
+                onTouchEnd={event => {
+                  if (mapSheetTouchStartY.current === null) return;
+                  const delta = (event.changedTouches[0]?.clientY ?? mapSheetTouchStartY.current) - mapSheetTouchStartY.current;
+                  mapSheetTouchStartY.current = null;
+                  if (Math.abs(delta) >= 45) setMapSheetExpanded(delta < 0);
+                }}>
+                <button type="button" aria-label={mapSheetExpanded ? "Replier les trajets" : "Développer les trajets en plein écran"}
+                  aria-expanded={mapSheetExpanded} onClick={() => setMapSheetExpanded(value => !value)}
+                  className="flex h-8 w-full items-center justify-center touch-pan-y sm:hidden">
+                  <span className="h-1.5 w-12 rounded-full bg-slate-300" aria-hidden="true"/>
+                </button>
+                <div className="flex items-center justify-between gap-3 px-4 pb-3 pt-1 sm:py-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
                   <h3 className="truncate text-lg font-black text-slate-900">{mapSelectedDestination ?? "Destinations disponibles"}</h3>
                   <p className="text-xs text-slate-500">{mapSelectedDestination ? mapDestinationJourneys.length + " trajet(s)" : destinationSummaries.length + " destination(s)"}</p>
                 </div>
                 {mapSelectedDestination && <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Retour</button>}
+                </div>
               </div>
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-slate-50/80 p-3">
                 {!mapSelectedDestination && destinationSummaries.map(item => <button type="button" key={item.label} onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50">
