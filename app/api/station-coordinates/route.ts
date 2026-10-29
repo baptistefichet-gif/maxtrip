@@ -3,7 +3,7 @@ export const revalidate = 86400;
 const API = "https://data.sncf.com/api/explore/v2.1/catalog/datasets/gares-de-voyageurs/records";
 type Row = Record<string, unknown>;
 function normalize(value: string) {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\\s+/g, " ");
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 export async function GET() {
   try {
@@ -28,8 +28,9 @@ export async function GET() {
     }
     const coordinates: Record<string, { lat: number; lon: number }> = {};
     for (const row of pages) {
-      const name = String(row.nom_gare ?? "");
-      const point = row.position_geographique as { lat?: number; lon?: number } | undefined;
+      const name = String(row.nom ?? "");
+      const raw = row.position_geographique;
+      const point = Array.isArray(raw) ? { lat: Number(raw[0]), lon: Number(raw[1]) } : raw as { lat?: number; lon?: number } | undefined;
       if (!name || !point || !Number.isFinite(point.lat) || !Number.isFinite(point.lon)) continue;
       const key = normalize(name);
       if (!coordinates[key]) coordinates[key] = { lat: Number(point.lat), lon: Number(point.lon) };
