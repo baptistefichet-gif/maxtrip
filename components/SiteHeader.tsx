@@ -35,7 +35,6 @@ export default function SiteHeader({ active }: SiteHeaderProps) {
           </Link>
         </nav>
 
-        <span className="hidden rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/85 lg:inline-flex">Bêta privée</span>
       </div>
     </header>
   );

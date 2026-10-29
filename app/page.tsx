@@ -621,7 +621,7 @@ export default function HomePage() {
         </section>}
 
         {mode === "explore" && !selectedExploreDestination && error && <div role="alert" className="mt-6 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
-        {mode === "explore" && !selectedExploreDestination && searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">Nous n’avons pas pu vérifier tous les trajets. D’autres possibilités peuvent exister.{truncationReasons.length > 0 && <ul className="mt-2 list-disc pl-5">{truncationReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}</div>}
+        {mode === "explore" && !selectedExploreDestination && searchTruncated && <p role="status" className="mt-3 text-xs text-slate-600">Résultats disponibles affichés · recherche non exhaustive. D’autres trajets peuvent exister.</p>}
 
         <section
           id="search-results"
@@ -668,14 +668,11 @@ export default function HomePage() {
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
-          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><CircleAlert size={15} className="mr-1 inline-block"/>Nous n’avons pas pu vérifier tous les trajets. D’autres possibilités peuvent exister.
-            {truncationReasons.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5">{truncationReasons.map((reason, index) => <li key={reason + index}>{reason}</li>)}</ul>}
-            <p className="mt-2">La pagination parcourt les résultats chargés ; elle ne récupère pas à elle seule les données manquantes.</p>
-          </div>}
+          {searchTruncated && <p role="status" className="mt-3 text-xs text-slate-600">Résultats disponibles affichés · recherche non exhaustive. D’autres trajets peuvent exister.</p>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les trajets avec correspondance sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
-            {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun résultat ne correspond aux champs actuellement reconnus. Cela peut signifier qu'il faut adapter le mapping aux noms de champs exacts du jeu SNCF. Aucun itinéraire n'est inventé.</div>}
+            {displayRecords.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Aucun trajet trouvé avec ces critères. Essaie une autre date ou une plage horaire plus large.</div>}
             {displayRecords.map((journey, index) => {
               const from = journey.origin;
               const to = journey.destination;

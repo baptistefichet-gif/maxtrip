@@ -70,11 +70,11 @@ export default function HowItWorksPage() {
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/80 text-amber-800"><ShieldAlert size={21} aria-hidden="true"/></div>
               <div>
-                <h2 id="limits-heading" className="text-xl font-black text-amber-950">Quand les résultats peuvent manquer</h2>
-                <p className="mt-2 text-sm leading-6 text-amber-950/75">Il arrive que MaxTrip ne puisse pas récupérer tous les trajets.</p>
+                <h2 id="limits-heading" className="text-xl font-black text-amber-950">À savoir sur les disponibilités</h2>
+                <p className="mt-2 text-sm leading-6 text-amber-950/75">MaxTrip affiche les trajets qu’il trouve dans les données SNCF.</p>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-6 text-amber-950/80">Si certaines informations SNCF n’ont pas pu être récupérées, MaxTrip te prévient. Il peut alors exister d’autres trajets que ceux affichés.</p>
+            <p className="mt-4 text-sm leading-6 text-amber-950/80">Les disponibilités évoluent et certaines recherches ne couvrent pas tous les trajets. Vérifie toujours ton voyage sur SNCF Connect.</p>
           </section>
         </div>
 
