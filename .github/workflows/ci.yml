@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
+  pull-requests: write
 
 jobs:
   production-build-and-api-smoke-test:
@@ -43,3 +44,14 @@ jobs:
           path: diagnostics/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Report failed build to PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f diagnostics/build.log ]; then
+            printf '### Build failure diagnostic\n\n```\n' > diagnostics/build-comment.md
+            tail -n 55 diagnostics/build.log >> diagnostics/build-comment.md
+            printf '\n```\n' >> diagnostics/build-comment.md
+            gh pr comment "${{ github.event.pull_request.number }}" --body-file diagnostics/build-comment.md
+          fi
