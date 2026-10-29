@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
+import ModernDatePicker from "@/components/ModernDatePicker";
 import Link from "next/link";
 import { applyConnectionRelevance, countHiddenAlternatives } from "@/lib/route-relevance.mjs";
 import { stationCoordinatesFor, stationKey } from "@/lib/station-geocoding.mjs";
@@ -575,11 +576,7 @@ export default function HomePage() {
                 </div>}
                 <p className="mt-1 text-xs font-normal text-slate-500">{stationsLoading ? "Chargement du catalogue…" : `${stations.destinations.length} gares disponibles`}</p>
               </div>}
-              <label className="block min-w-0 text-sm font-semibold text-slate-700 sm:col-span-2"><span className="flex items-center gap-2"><CalendarDays size={15}/> Date de l'aller</span>
-                <span className="mt-2 block min-w-0 w-full max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
-                  <input type="date" value={outDate} onChange={e=>{const nextDate=e.target.value;setOutDate(nextDate);if(returnDate<nextDate)setReturnDate(nextDate);}} className="block min-w-0 max-w-full w-full border-0 bg-transparent px-3 py-3 font-normal outline-none"/>
-                </span>
-              </label>
+              <div className="min-w-0 sm:col-span-2"><ModernDatePicker label="Date de l'aller" value={outDate} onChange={nextDate => { setOutDate(nextDate); if (returnDate < nextDate) setReturnDate(nextDate); }}/></div>
               <div className="grid grid-cols-2 gap-3 sm:col-span-2">
                 <HourSelect label="Départ à partir de" value={outStart} onChange={value => { setOutStart(value); if (outEnd && hourValue(value) >= hourValue(outEnd)) setOutEnd(nextHour(value)); }}/>
                 <HourSelect label="Départ jusqu’à" value={outEnd} endOfDay minExclusive={outStart} onChange={setOutEnd}/>
@@ -591,11 +588,7 @@ export default function HomePage() {
               Je veux un retour TGV MAX
             </label>
             {returnEnabled && <div className="mt-4 min-w-0 rounded-2xl bg-slate-50 p-4">
-              <label className="block min-w-0 text-sm font-semibold text-slate-700">Date du retour
-                <span className="mt-2 block min-w-0 w-full max-w-full overflow-hidden rounded-xl border border-slate-200 bg-white">
-                  <input type="date" min={outDate} value={returnDate} onChange={e=>setReturnDate(e.target.value)} className="block min-w-0 max-w-full w-full border-0 bg-transparent px-3 py-3 font-normal outline-none"/>
-                </span>
-              </label>
+              <ModernDatePicker label="Date du retour" value={returnDate} min={outDate} onChange={setReturnDate}/>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <HourSelect label="Retour à partir de" value={returnStart} onChange={value => { setReturnStart(value); if (returnEnd && hourValue(value) >= hourValue(returnEnd)) setReturnEnd(nextHour(value)); }}/>
                 <HourSelect label="Retour jusqu’à" value={returnEnd} endOfDay minExclusive={returnStart} onChange={setReturnEnd}/>
