@@ -1,0 +1,25 @@
+name: Audit SNCF station geocoding
+on:
+  push:
+    branches: [fix/map-unified-sidebar-detail]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Compare full MAX catalog to SNCF coordinates
+        run: node scripts/audit-station-coordinates.mjs
+      - name: Upload detailed report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: station-geocoding-audit
+          path: diagnostics/station-coverage.*
+          if-no-files-found: ignore
