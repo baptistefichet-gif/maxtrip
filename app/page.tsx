@@ -2,6 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { Drawer } from "vaul";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
@@ -196,6 +198,36 @@ function mapCityName(stationName: string) {
   })?.name ?? null;
 }
 
+
+// Vaul owns gesture arbitration, snapping and scroll handoff on touch devices.
+// The desktop panel keeps its existing layout and interactions.
+function MapItinerarySheet({ label, children }: { label: string; children: ReactNode }) {
+  const [mobile, setMobile] = useState(false);
+  const [snap, setSnap] = useState<number | string | null>(0.5);
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  if (!mobile) {
+    return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
+  }
+  return (
+    <Drawer.Root open modal={false} dismissible={false} noBodyStyles
+      snapPoints={[0.25, 0.5, 0.9]} activeSnapPoint={snap}
+      setActiveSnapPoint={setSnap} snapToSequentialPoint>
+      <Drawer.Content aria-label={label} className="absolute inset-x-0 bottom-0 z-[1100] flex h-[90%] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] focus:outline-none">
+        <Drawer.Handle className="!mb-1 !mt-3 !h-1.5 !w-12 !shrink-0 !bg-slate-300" />
+        <Drawer.Title className="sr-only">{label}</Drawer.Title>
+        <Drawer.Description className="sr-only">Fais glisser le panneau pour afficher les destinations, puis fais défiler la liste normalement.</Drawer.Description>
+        {children}
+      </Drawer.Content>
+    </Drawer.Root>
+  );
+}
+
 export default function HomePage() {
   const [mode, setMode] = useState<SearchMode>("explore");
   const [origin, setOrigin] = useState("");
@@ -236,12 +268,6 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
-  const [mapSheetExpanded, setMapSheetExpanded] = useState(false);
-  const sheetDragStartY = useRef<number | null>(null);
-  const sheetWasDragged = useRef(false);
-  const [mapSheetHeight, setMapSheetHeight] = useState<number | null>(null);
-  const sheetDragStartHeight = useRef(48);
-  const sheetDragCurrentHeight = useRef(48);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -650,41 +676,7 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[height] duration-200 ease-out sm:transition-none sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[90%]" : "h-[48%]")} style={mapSheetHeight === null ? undefined : { height: mapSheetHeight + "%" }}>
-              <div className="shrink-0 bg-white sm:hidden touch-none select-none cursor-grab active:cursor-grabbing"
-                onPointerDown={event => {
-                  if (event.target instanceof Element && event.target.closest("button")) return;
-                  sheetDragStartY.current = event.clientY;
-                  sheetDragStartHeight.current = mapSheetHeight ?? (mapSheetExpanded ? 90 : 48);
-                  sheetDragCurrentHeight.current = sheetDragStartHeight.current;
-                  sheetWasDragged.current = false;
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                }}
-                onPointerMove={event => {
-                  const start = sheetDragStartY.current;
-                  if (start === null) return;
-                  const containerHeight = event.currentTarget.closest("aside")?.parentElement?.clientHeight || window.innerHeight;
-                  const distance = event.clientY - start;
-                  if (Math.abs(distance) > 4) sheetWasDragged.current = true;
-                  const height = Math.max(30, Math.min(95, sheetDragStartHeight.current - distance / containerHeight * 100));
-                  sheetDragCurrentHeight.current = height;
-                  setMapSheetHeight(height);
-                }}
-                onPointerUp={() => {
-                  if (sheetDragStartY.current === null) return;
-                  sheetDragStartY.current = null;
-                  if (sheetWasDragged.current) setMapSheetExpanded(sheetDragCurrentHeight.current >= 68);
-                  setMapSheetHeight(null);
-                }}
-                onPointerCancel={() => { sheetDragStartY.current = null; setMapSheetHeight(null); }}>
-                <button type="button" aria-label={mapSheetExpanded ? "Replier le panneau des trajets" : "Développer le panneau des trajets"}
-                  aria-expanded={mapSheetExpanded}
-                  onClick={() => { setMapSheetExpanded(value => !value); setMapSheetHeight(null); }}
-                  className="flex h-10 w-full items-center justify-center touch-none focus-visible:outline-2 focus-visible:outline-emerald-700">
-                  <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-300"/>
-                </button>
-                <div className="px-4 pb-1 text-center text-[11px] text-slate-500">Glisse le bandeau pour agrandir ou replier</div>
-              </div>
+            <MapItinerarySheet label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"}>
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
@@ -715,7 +707,7 @@ export default function HomePage() {
                 </div>)}
               </div>
               {mapSelectedTripKey && <button type="button" onClick={() => setMapSelectedTripKey(null)} className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Afficher tous les trajets sur la carte</button>}
-            </aside>
+            </MapItinerarySheet>
           </div>
         </section>}
 
