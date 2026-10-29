@@ -669,7 +669,7 @@ export default function HomePage() {
                       <p className="mt-1 text-xs font-semibold text-slate-900">{getPlace(leg, "origin")} → {getPlace(leg, "destination")}</p>
                       <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
                     </div>)}
-                    <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapSelectedDestination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Voir le trajet et les retours compatibles</button>
+                    <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Voir le trajet et les retours compatibles</button>
                   </div>}
                 </div>)}
               </div>
