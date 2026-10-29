@@ -35,6 +35,12 @@ export async function GET() {
       const key = normalize(name);
       if (!coordinates[key]) coordinates[key] = { lat: Number(point.lat), lon: Number(point.lon) };
     }
+    // SNCF MAX names often include prefixes (e.g. "TGV HAUTE PICARDIE")
+    // absent from the station reference; resolve unambiguous aliases.
+    for (const [name, point] of Object.entries({ ...coordinates })) {
+      if (name.startsWith("TGV ") && !coordinates[name.slice(4)]) coordinates[name.slice(4)] = point;
+      if (!coordinates["TGV " + name]) coordinates["TGV " + name] = point;
+    }
     return NextResponse.json({ coordinates, complete: failed.length === 0 && pages.length >= total, missingPages: failed.length, source: "SNCF Gares & Connexions" }, { headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=86400" } });
   } catch {
     return NextResponse.json({ coordinates: {}, complete: false, error: "Coordonnées indisponibles." }, { status: 502 });
