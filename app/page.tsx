@@ -206,6 +206,8 @@ export default function HomePage() {
   const [destinationOpen, setDestinationOpen] = useState(false);
   const [destinationActiveIndex, setDestinationActiveIndex] = useState(0);
   const [stations, setStations] = useState<StationCatalogue>({ origins: [], destinations: [] });
+  const [stationCoordinates, setStationCoordinates] = useState<Record<string, { lat: number; lon: number }>>({});
+
   const [stationsLoading, setStationsLoading] = useState(true);
   const [stationsError, setStationsError] = useState("");
   const [outDate, setOutDate] = useState(todayString());
@@ -395,10 +397,27 @@ export default function HomePage() {
       .sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base" }));
   }, [relevantJourneys]);
 
-  const originMapStation = useMemo(() => {
-    const city = mapCityName(origin);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/station-coordinates").then(response => response.ok ? response.json() : null)
+      .then(data => { if (active && data?.coordinates) setStationCoordinates(data.coordinates); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const stationMapPoint = (name: string): MapStation | null => {
+    const key = normalizeText(name).replace(/[^A-Z0-9]+/g, " ").trim();
+    const exact = stationCoordinates[key];
+    if (exact) return { name, lat: exact.lat, lon: exact.lon };
+    // Only city-wide groupings use a city centroid, never an unrelated station.
+    if (!key.includes("INTRAMUROS")) return null;
+    const city = mapCityName(name);
     return INITIAL_STATIONS.find(station => station.name === city) ?? null;
-  }, [origin]);
+  };
+
+  const originMapStation = useMemo(() => {
+    return stationMapPoint(origin);
+  }, [origin, stationCoordinates]);
 
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
@@ -407,24 +426,23 @@ export default function HomePage() {
       if (!city) continue;
       names.set(city, (names.get(city) || 0) + 1);
     }
-    const coords = new Map(INITIAL_STATIONS.map(station => [station.name, station]));
     return Array.from(names, ([name, count]) => {
-      const station = coords.get(name);
-      return station ? { ...station, count } : null;
+      const matchingJourney = filtered.find(journey => mapCityName(journey.destination) === name);
+      const station = matchingJourney ? stationMapPoint(matchingJourney.destination) : null;
+      return station ? { ...station, name, count } : null;
     }).filter((station): station is MapStation & { count: number } => station !== null);
-  }, [filtered]);
+  }, [filtered, stationCoordinates]);
 
   const mapJourneys = useMemo(() => filtered.map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
     const points = names.map(name => {
-      const city = mapCityName(name);
-      return INITIAL_STATIONS.find(station => station.name === city) ?? null;
+      return stationMapPoint(name);
     });
     const hasDrawableLeg = points.some((point, index) =>
       index < points.length - 1 && point !== null && points[index + 1] !== null
     );
     return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
-  }).filter(journey => journey.hasDrawableLeg).map(({ key, points, changes }) => ({ key, points, changes })), [filtered]);
+  }).filter(journey => journey.points.length > 1 && journey.points.every(point => point !== null)).map(({ key, points, changes }) => ({ key, points, changes })), [filtered, stationCoordinates]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
