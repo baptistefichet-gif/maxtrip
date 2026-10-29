@@ -414,17 +414,20 @@ export default function HomePage() {
     }).filter((station): station is MapStation & { count: number } => station !== null);
   }, [filtered]);
 
-  const mapJourneys = useMemo(() => filtered.map(journey => {
+  const mapJourneys = useMemo(() => filtered.filter(journey =>
+    mode !== "classic" ||
+    (normalizeText(journey.origin) === normalizeText(origin) &&
+      normalizeText(journey.destination) === normalizeText(destination))
+  ).map(journey => {
     const names = [journey.origin, ...journey.legs.map(leg => getPlace(leg, "destination"))];
     const points = names.map(name => {
       const city = mapCityName(name);
       return INITIAL_STATIONS.find(station => station.name === city) ?? null;
     });
-    const hasDrawableLeg = points.some((point, index) =>
-      index < points.length - 1 && point !== null && points[index + 1] !== null
-    );
-    return { key: journey.key, points, changes: journey.changes, hasDrawableLeg };
-  }).filter(journey => journey.hasDrawableLeg).map(({ key, points, changes }) => ({ key, points, changes })), [filtered]);
+    // Never draw a partial line to the wrong city when a station is not mapped.
+    return { key: journey.key, points, changes: journey.changes };
+  }).filter(journey => journey.points.length >= 2 && journey.points.every(point => point !== null)),
+  [filtered, mode, origin, destination]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -592,7 +595,7 @@ export default function HomePage() {
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapJourneys.some(journey => journey.key === selectedJourneyKey) ? selectedJourneyKey : null} selected={selected} onSelect={name=>{if(mode==="explore"){openDestinationDetails(name)}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
