@@ -6,7 +6,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown,
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
-import { applyConnectionRelevance } from "@/lib/route-relevance.mjs";
+import { applyConnectionRelevance, countHiddenAlternatives } from "@/lib/route-relevance.mjs";
 
 const StationMap = dynamic(() => import("@/components/StationMap"), {
   ssr: false,
@@ -358,11 +358,15 @@ export default function HomePage() {
     toleranceMinutes: 60
   }), [journeys, showAllConnections, allowConnections, returnEnabled]);
   const relevantJourneys = relevanceResult.visible;
-  const suppressedConnectionCount = useMemo(() => applyConnectionRelevance(journeys, {
-    enabled: allowConnections,
-    showAllConnections: false,
-    returnRequired: returnEnabled
-  }).suppressed.length, [journeys, allowConnections, returnEnabled]);
+  const suppressedConnectionCount = useMemo(() => {
+    const hidden = applyConnectionRelevance(journeys, {
+      enabled: allowConnections,
+      showAllConnections: false,
+      returnRequired: returnEnabled
+    }).suppressed;
+    return countHiddenAlternatives(hidden, mode === "explore" ? selectedExploreDestination : null,
+      station => mapCityName(station) ?? station);
+  }, [journeys, allowConnections, returnEnabled, mode, selectedExploreDestination]);
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
@@ -662,7 +666,7 @@ export default function HomePage() {
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
-            {allowConnections && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+            {allowConnections && suppressedConnectionCount > 0 && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
