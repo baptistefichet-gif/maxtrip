@@ -644,20 +644,37 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            {mapSelectedDestination && <aside aria-label={"Trajets vers " + mapSelectedDestination} className="absolute bottom-3 left-3 right-3 z-[1100] flex max-h-[43%] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] lg:w-[380px]">
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
-                <div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Destinations</p><h3 className="truncate text-lg font-black text-slate-900">{mapSelectedDestination}</h3><p className="text-xs text-slate-500">{mapDestinationJourneys.length} trajet(s) disponible(s)</p></div>
-                <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200" aria-label="Fermer les trajets">Fermer</button>
+            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className="absolute bottom-3 left-3 right-3 z-[1100] flex max-h-[48%] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] lg:w-[380px]">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
+                  <h3 className="truncate text-lg font-black text-slate-900">{mapSelectedDestination ?? "Destinations disponibles"}</h3>
+                  <p className="text-xs text-slate-500">{mapSelectedDestination ? mapDestinationJourneys.length + " trajet(s)" : destinationSummaries.length + " destination(s)"}</p>
+                </div>
+                {mapSelectedDestination && <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Retour</button>}
               </div>
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain bg-slate-50/80 p-3">
-                {mapDestinationJourneys.map(journey => <button type="button" key={journey.key} onClick={() => setMapSelectedTripKey(current => current === journey.key ? null : journey.key)} aria-pressed={mapSelectedTripKey === journey.key} className={"block w-full rounded-xl border p-3 text-left shadow-sm transition focus-visible:outline-2 focus-visible:outline-emerald-600 " + (mapSelectedTripKey === journey.key ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50")}>
-                  <span className="flex items-center justify-between gap-2"><span className="font-bold tabular-nums text-slate-900">{journey.departure} → {journey.arrival}</span>{mapSelectedTripKey === journey.key && <span className="rounded-full bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white">Sélectionné</span>}</span>
-                  <span className="mt-1 block text-xs text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
+                {!mapSelectedDestination && destinationSummaries.map(item => <button type="button" key={item.label} onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50">
+                  <span className="truncate text-sm font-bold text-slate-900">{item.label}</span><span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">{item.count} trajet(s)</span>
                 </button>)}
+                {mapSelectedDestination && mapDestinationJourneys.map(journey => <div key={journey.key} className={"overflow-hidden rounded-xl border bg-white shadow-sm " + (mapSelectedTripKey === journey.key ? "border-emerald-600 ring-2 ring-emerald-200" : "border-slate-200")}>
+                  <button type="button" onClick={() => setMapSelectedTripKey(current => current === journey.key ? null : journey.key)} aria-expanded={mapSelectedTripKey === journey.key} className="block w-full p-3 text-left transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-600">
+                    <span className="flex items-center justify-between gap-2"><span className="font-bold tabular-nums text-slate-900">{journey.departure} → {journey.arrival}</span><span className="text-xs font-semibold text-emerald-800">{mapSelectedTripKey === journey.key ? "Masquer −" : "Détails +"}</span></span>
+                    <span className="mt-1 block text-xs text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
+                  </button>
+                  {mapSelectedTripKey === journey.key && <div className="space-y-2 border-t border-emerald-100 bg-emerald-50/50 p-3">
+                    <p className="text-xs font-bold text-emerald-900">Détail de l'itinéraire</p>
+                    {journey.legs.map((leg, index) => <div key={journey.key + "-leg-" + index} className="rounded-lg border border-emerald-100 bg-white p-2.5">
+                      <p className="text-[11px] font-semibold uppercase text-emerald-800">Train {index + 1}</p>
+                      <p className="mt-1 text-xs font-semibold text-slate-900">{getPlace(leg, "origin")} → {getPlace(leg, "destination")}</p>
+                      <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
+                    </div>)}
+                    <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapSelectedDestination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Voir le trajet et les retours compatibles</button>
+                  </div>}
+                </div>)}
               </div>
-              {mapSelectedTripKey && <button type="button" onClick={() => setMapSelectedTripKey(null)} className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Voir tous les trajets de cette ville</button>}
-            </aside>}
-            {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && !mapSelectedDestination && <div className="absolute bottom-3 left-3 right-3 z-[1100] overflow-x-auto rounded-xl border border-slate-200 bg-white/95 p-3 shadow-lg sm:bottom-5 sm:left-5 sm:right-5"><p className="mb-2 text-xs font-medium text-slate-600">Autres destinations accessibles :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold hover:bg-emerald-50">{item.label} ({item.count})</button>)}</div></div>}
+              {mapSelectedTripKey && <button type="button" onClick={() => setMapSelectedTripKey(null)} className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50">Afficher tous les trajets sur la carte</button>}
+            </aside>
           </div>
         </section>}
 

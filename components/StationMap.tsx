@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, useMap, ZoomControl } from "react-leaflet";
 import { Fragment, useEffect, useMemo } from "react";
 import type { LatLngExpression } from "leaflet";
 
@@ -46,7 +46,8 @@ export default function StationMap({
   const drawnJourneys = visibleJourney ? [visibleJourney] : visibleDestination ? (journeys ?? []).filter(journey => journey.destinationLabel === visibleDestination) : [];
   return (
     <div className="h-full min-h-[360px] w-full">
-      <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
+      <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} zoomControl={false} scrollWheelZoom={false} preferCanvas>
+        <ZoomControl position="topright" />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
