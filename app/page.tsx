@@ -236,6 +236,8 @@ export default function HomePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [mapSheetExpanded, setMapSheetExpanded] = useState(false);
+  const sheetDragStartY = useRef<number | null>(null);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -455,7 +457,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mapExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
+      if (event.key === "Escape") { setMapExpanded(false); setMapSheetExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -644,7 +646,25 @@ export default function HomePage() {
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
-            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className="absolute bottom-3 left-3 right-3 z-[1100] flex max-h-[48%] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:max-h-none sm:w-[340px] lg:w-[380px]">
+            <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[height] duration-200 ease-out sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[90%]" : "h-[48%]")}>
+              <div className="flex shrink-0 items-center justify-center bg-white pt-2 sm:hidden">
+                <button type="button" aria-label={mapSheetExpanded ? "Replier le panneau des trajets" : "Développer le panneau des trajets"} aria-expanded={mapSheetExpanded}
+                  onClick={() => setMapSheetExpanded(value => !value)}
+                  onPointerDown={event => { sheetDragStartY.current = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); }}
+                  onPointerUp={event => {
+                    const start = sheetDragStartY.current;
+                    sheetDragStartY.current = null;
+                    if (start === null) return;
+                    const distance = event.clientY - start;
+                    if (distance < -45) setMapSheetExpanded(true);
+                    if (distance > 45) setMapSheetExpanded(false);
+                  }}
+                  onPointerCancel={() => { sheetDragStartY.current = null; }}
+                  className="flex h-8 w-24 touch-none items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-700"
+                  title={mapSheetExpanded ? "Glisser vers le bas pour replier" : "Glisser vers le haut pour développer"}>
+                  <span aria-hidden="true" className="h-1.5 w-12 rounded-full bg-slate-300"/>
+                </button>
+              </div>
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
