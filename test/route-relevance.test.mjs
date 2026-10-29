@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyConnectionRelevance } from "../lib/route-relevance.mjs";
+import { applyConnectionRelevance, selectDiverseJourneys } from "../lib/route-relevance.mjs";
 
 const direct = (returns = [{ key: "back-direct" }]) => ({
   key: "direct", destination: "AIX EN PROVENCE TGV", changes: 0,
@@ -40,9 +40,9 @@ test("keeps journeys to distinct stations of the same city", () => {
   assert.equal(result.suppressed.length, 0);
 });
 
-test("includes departures at exactly sixty minutes and excludes earlier departures outside the window", () => {
-  const atBoundary = { ...indirect(), departureMinutes: 660 };
-  const outside = { ...indirect(), key: "outside", departureMinutes: 539 };
+test("hides a connection 15 minutes later, but not 16 minutes later", () => {
+  const atBoundary = { ...indirect(), departureMinutes: 615 };
+  const outside = { ...indirect(), key: "outside", departureMinutes: 616 };
   const result = applyConnectionRelevance([direct(), atBoundary, outside], { enabled: true });
   assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
   assert.ok(result.visible.some(route => route.key === "outside"));
@@ -73,4 +73,16 @@ test("keeps connection if later direct has no compatible return", () => {
   const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
   const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true, returnRequired: true });
   assert.deepEqual(result.visible.map(route => route.key), ["indirect"]);
+});
+
+test("destination coverage is preserved before adding extra routes", () => {
+  const journeys = [
+    ...Array.from({ length: 12 }, (_, i) => ({ key: "lyon" + i, destination: "LYON", changes: 0, durationMinutes: 100 + i, departureMinutes: i })),
+    { key: "narbonne", destination: "NARBONNE", changes: 1, durationMinutes: 190, departureMinutes: 400 },
+    { key: "aix", destination: "AIX TGV", changes: 0, durationMinutes: 160, departureMinutes: 500 }
+  ];
+  const selected = selectDiverseJourneys(journeys, 4);
+  assert.equal(new Set(selected.map(j => j.destination)).size, 3);
+  assert.equal(selected.length, 4);
+  assert.equal(selected[0].key, "lyon0");
 });

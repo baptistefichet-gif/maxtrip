@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { selectDiverseJourneys } from "@/lib/route-relevance.mjs";
 
 export const revalidate = 900;
 export const maxDuration = 60;
@@ -27,6 +28,7 @@ const MAX_CONNECTION_BATCHES_IN_FLIGHT = 4;
 const MAX_TRANSFER_CANDIDATES_FIRST_HOP = 64;
 const MAX_TRANSFER_CANDIDATES_LATER_HOPS = 32;
 const MAX_ROUTES = 400;
+const MAX_CANDIDATE_ROUTES = 2400;
 const CITY_PREFIXES = [
   "AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE",
   "MONTPELLIER", "STRASBOURG", "PERPIGNAN", "BESANCON", "MULHOUSE",
@@ -297,7 +299,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
   const routeKeys = new Set<string>();
   // In Explore mode, keep every distinct route discovered up to the global safety cap.
   // The previous per-destination limit of four severely understated destination counts.
-  const routeLimit = MAX_ROUTES;
+  const routeLimit = MAX_CANDIDATE_ROUTES;
   let visitedStates = 0;
   const maxStates = destination ? 15000 : 30000;
 
@@ -310,7 +312,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     const key = path.map(trainKey).join(" >> ");
     if (routeKeys.has(key)) return;
     const existingForDestination = found.filter(route => normal(route.destination) === normal(finalDestination)).length;
-    if (existingForDestination >= routeLimit || found.length >= MAX_ROUTES) return;
+    if (existingForDestination >= routeLimit || found.length >= MAX_CANDIDATE_ROUTES) return;
     routeKeys.add(key);
 
     const departureMinutes = Number(first.__depMin);
@@ -389,7 +391,8 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     if (found.length >= MAX_ROUTES) break;
   }
 
-  return found.sort((a, b) => a.departureMinutes - b.departureMinutes || a.durationMinutes - b.durationMinutes);
+  const ranked = selectDiverseJourneys(found, MAX_ROUTES);
+  return ranked.sort((a, b) => a.departureMinutes - b.departureMinutes || a.durationMinutes - b.durationMinutes);
 }
 
 function combineTrainSets(...sets: Array<{ records: TrainRecord[]; total: number; truncated: boolean; truncationReasons?: string[] }>) {

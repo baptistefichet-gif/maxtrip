@@ -355,7 +355,7 @@ export default function HomePage() {
     enabled: allowConnections,
     showAllConnections,
     returnRequired: returnEnabled,
-    toleranceMinutes: 60
+    toleranceMinutes: 15
   }), [journeys, showAllConnections, allowConnections, returnEnabled]);
   const relevantJourneys = relevanceResult.visible;
   const suppressedConnectionCount = useMemo(() => applyConnectionRelevance(journeys, {
