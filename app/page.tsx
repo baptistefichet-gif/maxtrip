@@ -574,7 +574,7 @@ export default function HomePage() {
             <div className="mt-5 rounded-2xl border border-slate-200 p-3">
               <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
                 <input type="checkbox" checked={allowConnections} onChange={event => setAllowConnections(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700"/>
-                <span><span className="block">Autoriser les trajets avec correspondance</span><span className="mt-1 block font-normal text-slate-500">Les trajets directs restent proposés. Cette option s’applique à l’aller et au retour.</span></span>
+                <span><span className="block">Autoriser les trajets avec correspondance</span><span className="mt-1 block font-normal text-slate-500">MaxTrip peut combiner plusieurs trains TGV MAX disponibles lorsque le trajet direct n’est pas proposé. Cette option s’applique à l’aller et au retour.</span></span>
               </label>
               {allowConnections && <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-3">
                 <label className="text-sm font-semibold text-slate-700">Correspondances max.<select value={maxChanges} onChange={e=>setMaxChanges(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></label>
@@ -586,7 +586,7 @@ export default function HomePage() {
 
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
-              <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
+              <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Toutes les destinations trouvées pour la date choisie sont affichées sur la carte. Sélectionne une ville pour voir ses trajets.</p></div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span>
             </div>
             <div className="h-[360px] sm:h-[460px]">

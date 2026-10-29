@@ -173,6 +173,19 @@ async function fetchWhere(where: string, maxRecords = MAX_RECORDS, allowPartial 
   };
 }
 
+// Explore: load all MAX-eligible segments for one date before building the graph.
+// This avoids an arbitrary 64-station transfer shortlist. A finite source limit
+// remains explicit, so incomplete results are never advertised as exhaustive.
+async function getDateGraph(date: string) {
+  const where = "date = date'" + date + "' AND od_happy_card = 'OUI'";
+  const data = await fetchWhere(where, MAX_RECORDS, true);
+  return {
+    ...data,
+    truncationReasons: data.truncationReasons,
+    records: Array.from(new Map(data.records.map(record => [trainKey(record), record])).values())
+  };
+}
+
 async function getRelevantTrains(date: string, roots: string[], direction: "origine" | "destination", maxLegs: number, preferredStations: string[] = []) {
   const allRecords: TrainRecord[] = [];
   const queriedStations = new Set<string>();
@@ -443,7 +456,11 @@ export async function GET(request: NextRequest) {
     const targetFeederStations = targetArrivalData
       ? Array.from(new Set(targetArrivalData.records.map(originOf).filter(Boolean)))
       : [];
-    const outboundRootData = await getRelevantTrains(date, [origin], "origine", maxLegs, targetFeederStations);
+    // Explorer has no destination filter: build its routes from the date-wide
+    // graph instead of truncating candidate transfer stations.
+    const outboundRootData = !destination && maxLegs > 1
+      ? await getDateGraph(date)
+      : await getRelevantTrains(date, [origin], "origine", maxLegs, targetFeederStations);
     const outboundData = targetArrivalData
       ? combineTrainSets(outboundRootData, targetArrivalData)
       : outboundRootData;
@@ -455,7 +472,9 @@ export async function GET(request: NextRequest) {
     });
 
     if (returnRequired) {
-      const returnArrivalData = await getRelevantTrains(returnDate, [origin], "destination", maxLegs);
+      const returnArrivalData = !destination && maxLegs > 1
+        ? await getDateGraph(returnDate)
+        : await getRelevantTrains(returnDate, [origin], "destination", maxLegs);
       let returnData = returnArrivalData;
 
       // For a classic trip, explore outward from the selected destination as well,
