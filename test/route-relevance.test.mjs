@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyConnectionRelevance } from "../lib/route-relevance.mjs";
+import { applyConnectionRelevance, countHiddenAlternatives } from "../lib/route-relevance.mjs";
 
 const direct = (returns = [{ key: "back-direct" }]) => ({
   key: "direct", destination: "AIX EN PROVENCE TGV", changes: 0,
@@ -73,4 +73,18 @@ test("keeps connection if later direct has no compatible return", () => {
   const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
   const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true, returnRequired: true });
   assert.deepEqual(result.visible.map(route => route.key), ["indirect"]);
+});
+
+
+test("alternative counter is scoped to the destination displayed", () => {
+  const suppressed = [
+    { destination: "NARBONNE", key: "a" },
+    { destination: "LYON (intramuros)", key: "b" },
+    { destination: "LYON (intramuros)", key: "c" }
+  ];
+  const label = station => station.startsWith("LYON") ? "Lyon" : "Narbonne";
+  assert.equal(countHiddenAlternatives(suppressed, "Narbonne", label), 1);
+  assert.equal(countHiddenAlternatives(suppressed, "Lyon", label), 2);
+  assert.equal(countHiddenAlternatives(suppressed, null, label), 3);
+  assert.equal(countHiddenAlternatives(suppressed, "Paris", label), 0);
 });
