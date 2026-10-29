@@ -27,6 +27,7 @@ const MAX_CONNECTION_BATCHES_IN_FLIGHT = 4;
 const MAX_TRANSFER_CANDIDATES_FIRST_HOP = 64;
 const MAX_TRANSFER_CANDIDATES_LATER_HOPS = 32;
 const MAX_ROUTES = 400;
+const MAX_JOURNEY_DURATION_MINUTES = 7 * 60;
 const CITY_PREFIXES = [
   "AIX EN PROVENCE", "CLERMONT FERRAND", "SAINT ETIENNE", "LA ROCHELLE",
   "MONTPELLIER", "STRASBOURG", "PERPIGNAN", "BESANCON", "MULHOUSE",
@@ -316,6 +317,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     const departureMinutes = Number(first.__depMin);
     let arrivalMinutes = Number(last.__arrMin);
     while (arrivalMinutes < departureMinutes) arrivalMinutes += 1440;
+    if (arrivalMinutes - departureMinutes > MAX_JOURNEY_DURATION_MINUTES) return;
     found.push({
       key,
       origin: originOf(first),
@@ -355,6 +357,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
 
       const shift = absoluteDep - Number(next.__depMin);
       const adjusted = { ...next, __depMin: absoluteDep, __arrMin: Number(next.__arrMin) + shift };
+      if (Number(adjusted.__arrMin) - Number(path[0].__depMin) > MAX_JOURNEY_DURATION_MINUTES) continue;
       const nextPath = [...path, adjusted];
       if (!destination || normal(nextDestination) === normal(destination)) save(nextPath);
       if (destination && normal(nextDestination) === normal(destination)) continue;
@@ -373,6 +376,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
     if (dep < 0 || arrRaw < 0 || dep < options.start || dep > options.end) continue;
     let arr = arrRaw;
     if (arr < dep) arr += 1440;
+    if (arr - dep > MAX_JOURNEY_DURATION_MINUTES) continue;
     firstLegs.push({ ...record, __depMin: dep, __arrMin: arr });
   }
   firstLegs.sort((a, b) => Number(a.__depMin) - Number(b.__depMin));

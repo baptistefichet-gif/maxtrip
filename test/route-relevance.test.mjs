@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyConnectionRelevance } from "../lib/route-relevance.mjs";
+import { applyConnectionRelevance, withinMaximumJourneyDuration } from "../lib/route-relevance.mjs";
 
 const direct = (returns = [{ key: "back-direct" }]) => ({
   key: "direct", destination: "AIX EN PROVENCE TGV", changes: 0,
@@ -73,4 +73,26 @@ test("keeps connection if later direct has no compatible return", () => {
   const earlyConnection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
   const result = applyConnectionRelevance([laterDirect, earlyConnection], { enabled: true, returnRequired: true });
   assert.deepEqual(result.visible.map(route => route.key), ["indirect"]);
+});
+
+
+test("journeys of seven hours are allowed but longer journeys are rejected", () => {
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: 420 }), true);
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: 421 }), false);
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: 0 }), true);
+  assert.equal(withinMaximumJourneyDuration({ durationMinutes: -1 }), false);
+});
+
+test("later departure and later arrival is a useful alternative", () => {
+  const directTrip = { ...direct(), departureMinutes: 600, arrivalMinutes: 780 };
+  const laterConnection = { ...indirect(), departureMinutes: 660, arrivalMinutes: 840 };
+  const result = applyConnectionRelevance([directTrip, laterConnection], { enabled: true });
+  assert.equal(result.suppressed.length, 0);
+});
+
+test("earlier departure and later arrival is dominated by a direct", () => {
+  const directTrip = { ...direct(), departureMinutes: 960, arrivalMinutes: 1080 };
+  const connection = { ...indirect(), departureMinutes: 780, arrivalMinutes: 1140 };
+  const result = applyConnectionRelevance([directTrip, connection], { enabled: true });
+  assert.deepEqual(result.suppressed.map(route => route.key), ["indirect"]);
 });
