@@ -643,6 +643,7 @@ export default function HomePage() {
           <div className="min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={null} selected={mapSelectedDestination} onSelect={name => setMapSelectedDestination(name)}/>
           </div>
+          {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && <div className="shrink-0 overflow-x-auto border-t border-slate-200 bg-slate-50 px-4 py-2"><p className="mb-2 text-xs text-slate-600">Destinations sans coordonnées vérifiées (sélection possibles ici) :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => setMapSelectedDestination(item.label)} className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">{item.label} ({item.count})</button>)}</div></div>}
           {mapSelectedDestination && <div className="max-h-[42vh] shrink-0 overflow-y-auto border-t border-emerald-200 bg-white p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-bold">{mapSelectedDestination} · {mapDestinationJourneys.length} trajet(s) disponible(s)</h3><button type="button" onClick={() => setMapSelectedDestination(null)} className="text-sm font-semibold text-emerald-800">Masquer</button></div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
