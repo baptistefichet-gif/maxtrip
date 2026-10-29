@@ -237,6 +237,7 @@ export default function HomePage() {
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
+  const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
@@ -425,12 +426,12 @@ export default function HomePage() {
   const destinations = useMemo(() => {
     const names = new Map<string, number>();
     for (const journey of relevantJourneys) {
-      const city = mapCityName(journey.destination);
+      const city = mapCityName(journey.destination) ?? journey.destination;
       if (!city) continue;
       names.set(city, (names.get(city) || 0) + 1);
     }
     return Array.from(names, ([name, count]) => {
-      const matchingJourney = relevantJourneys.find(journey => mapCityName(journey.destination) === name);
+      const matchingJourney = relevantJourneys.find(journey => (mapCityName(journey.destination) ?? journey.destination) === name);
       const station = matchingJourney ? stationMapPoint(matchingJourney.destination) : null;
       return station ? { ...station, name, count } : null;
     }).filter((station): station is MapStation & { count: number } => station !== null);
@@ -454,7 +455,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mapExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); }
+      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -636,19 +637,19 @@ export default function HomePage() {
           </section>
         </div>
 
-        {mapExpanded && <section role="dialog" aria-modal="true" aria-label="Carte agrandie des destinations" className="fixed inset-0 z-[2100] flex flex-col bg-white">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        {mapExpanded && <section role="dialog" aria-modal="true" aria-label="Carte agrandie des destinations" className="fixed inset-0 z-[2100] flex flex-col overflow-hidden bg-slate-50">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
             <div><h2 className="text-lg font-black">Carte des destinations</h2><p className="text-xs text-slate-600">Clique sur une ville pour voir ses trajets disponibles.</p></div>
-            <button type="button" onClick={() => { setMapExpanded(false); setMapSelectedDestination(null); }} className="rounded-lg border border-slate-300 px-4 py-2 font-semibold" aria-label="Fermer la carte agrandie">Fermer ✕</button>
+            <button type="button" onClick={() => { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Réduire la carte" title="Réduire la carte"><Minimize2 size={20}/></button>
           </div>
-          <div className="min-h-0 flex-1">
-            <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={null} selected={mapSelectedDestination} onSelect={name => setMapSelectedDestination(name)}/>
+          <div className="min-h-[180px] flex-1">
+            <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
           </div>
-          {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && <div className="shrink-0 overflow-x-auto border-t border-slate-200 bg-slate-50 px-4 py-2"><p className="mb-2 text-xs text-slate-600">Destinations sans coordonnées vérifiées (sélection possibles ici) :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => setMapSelectedDestination(item.label)} className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">{item.label} ({item.count})</button>)}</div></div>}
-          {mapSelectedDestination && <div className="max-h-[42vh] shrink-0 overflow-y-auto border-t border-emerald-200 bg-white p-4 shadow-lg">
-            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-bold">{mapSelectedDestination} · {mapDestinationJourneys.length} trajet(s) disponible(s)</h3><button type="button" onClick={() => setMapSelectedDestination(null)} className="text-sm font-semibold text-emerald-800">Masquer</button></div>
+          {destinationSummaries.some(item => !destinations.some(station => station.name === item.label)) && <div className="shrink-0 overflow-x-auto border-t border-slate-200 bg-slate-50 px-4 py-2"><p className="mb-2 text-xs text-slate-600">Destinations sans coordonnées vérifiées (sélection possibles ici) :</p><div className="flex gap-2">{destinationSummaries.filter(item => !destinations.some(station => station.name === item.label)).map(item => <button key={item.label} type="button" onClick={() => setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="shrink-0 rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold">{item.label} ({item.count})</button>)}</div></div>}
+          {mapSelectedDestination && <div className="max-h-[42vh] min-h-[160px] shrink-0 overflow-y-auto border-t border-emerald-200 bg-white p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3"><h3 className="font-bold">{mapSelectedDestination} · {mapDestinationJourneys.length} trajet(s) disponible(s)</h3><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="text-sm font-semibold text-emerald-800">Tout afficher</button></div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {mapDestinationJourneys.map(journey => <button type="button" key={journey.key} onClick={() => { setMapExpanded(false); openDestinationDetails(mapSelectedDestination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="rounded-xl border border-slate-200 p-3 text-left hover:border-emerald-500 hover:bg-emerald-50">
+              {mapDestinationJourneys.map(journey => <button type="button" key={journey.key} onClick={() => setMapSelectedTripKey(current => current === journey.key ? null : journey.key)} aria-pressed={mapSelectedTripKey === journey.key} className={"rounded-xl border p-3 text-left transition focus-visible:outline-2 focus-visible:outline-emerald-600 " + (mapSelectedTripKey === journey.key ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-200" : "border-slate-200 bg-white hover:border-emerald-400 hover:bg-emerald-50")}>
                 <span className="block font-bold">{journey.departure} → {journey.arrival}</span>
                 <span className="text-xs text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
               </button>)}
