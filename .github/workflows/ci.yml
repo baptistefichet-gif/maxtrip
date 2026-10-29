@@ -25,19 +25,6 @@ jobs:
         run: npm install
       - name: Run unit tests
         run: npm test
-      - name: Update Vaul lockfile on this feature branch
-        if: github.event_name == 'pull_request' && github.head_ref == 'feature/vaul-mobile-map-sheet'
-        run: |
-          git fetch origin feature/vaul-mobile-map-sheet
-          git checkout -B feature/vaul-mobile-map-sheet origin/feature/vaul-mobile-map-sheet
-          npm install --package-lock-only --ignore-scripts
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "Lock Vaul dependency tree"
-            git push origin HEAD:feature/vaul-mobile-map-sheet
-          fi
       - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
@@ -49,15 +36,6 @@ jobs:
           cat diagnostics/build.log
           echo "$build_status" > diagnostics/build-exit-code.txt
           exit "$build_status"
-      - name: Publish build errors for Vaul PR
-        if: always() && github.event_name == 'pull_request' && github.head_ref == 'feature/vaul-mobile-map-sheet'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -f diagnostics/build.log ]; then
-            tail -n 45 diagnostics/build.log > diagnostics/build-tail.txt
-            gh pr comment "${{ github.event.pull_request.number }}" --body-file diagnostics/build-tail.txt
-          fi
       - name: Smoke-test itinerary search against live SNCF data
         run: node scripts/smoke-itinerary-endpoint.mjs
       - name: Upload build and API diagnostics

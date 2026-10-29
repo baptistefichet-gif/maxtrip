@@ -487,7 +487,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mapExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setMapExpanded(false); setMapSheetExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
+      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
