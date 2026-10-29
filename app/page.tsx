@@ -670,7 +670,7 @@ export default function HomePage() {
                       <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
                       {index < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
-                    <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">Voir le trajet et les retours compatibles</button>
+                    <button type="button" onClick={() => { setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
                   </div>}
                 </div>)}
               </div>
