@@ -238,6 +238,7 @@ export default function HomePage() {
   const [mapExpanded, setMapExpanded] = useState(false);
   const [mapSheetExpanded, setMapSheetExpanded] = useState(false);
   const sheetDragStartY = useRef<number | null>(null);
+  const sheetWasDragged = useRef(false);
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -649,15 +650,14 @@ export default function HomePage() {
             <aside aria-label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"} className={"absolute bottom-0 left-0 right-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] transition-[height] duration-200 ease-out sm:bottom-5 sm:left-5 sm:right-auto sm:top-5 sm:h-auto sm:max-h-none sm:w-[340px] sm:rounded-2xl lg:w-[380px] " + (mapSheetExpanded ? "h-[90%]" : "h-[48%]")}>
               <div className="flex shrink-0 items-center justify-center bg-white pt-2 sm:hidden">
                 <button type="button" aria-label={mapSheetExpanded ? "Replier le panneau des trajets" : "Développer le panneau des trajets"} aria-expanded={mapSheetExpanded}
-                  onClick={() => setMapSheetExpanded(value => !value)}
-                  onPointerDown={event => { sheetDragStartY.current = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); }}
+                  onClick={() => { if (sheetWasDragged.current) { sheetWasDragged.current = false; return; } setMapSheetExpanded(value => !value); }}
+                  onPointerDown={event => { sheetWasDragged.current = false; sheetDragStartY.current = event.clientY; event.currentTarget.setPointerCapture(event.pointerId); }}
                   onPointerUp={event => {
                     const start = sheetDragStartY.current;
                     sheetDragStartY.current = null;
                     if (start === null) return;
                     const distance = event.clientY - start;
-                    if (distance < -45) setMapSheetExpanded(true);
-                    if (distance > 45) setMapSheetExpanded(false);
+                    if (Math.abs(distance) > 45) { sheetWasDragged.current = true; setMapSheetExpanded(distance < 0); }
                   }}
                   onPointerCancel={() => { sheetDragStartY.current = null; }}
                   className="flex h-8 w-24 touch-none items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-emerald-700"
