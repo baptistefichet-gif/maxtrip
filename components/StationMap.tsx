@@ -27,13 +27,14 @@ function FitStations({ stations }: { stations: MapStation[] }) {
 }
 
 export default function StationMap({
-  stations, originStation, journeys, selectedJourneyKey, selected, onSelect
+  stations, originStation, journeys, selectedJourneyKey, selected, visibleDestination, onSelect
 }: {
   stations: MapStation[];
   originStation?: MapStation | null;
   journeys?: MapJourney[];
   selectedJourneyKey?: string | null;
   selected?: string | null;
+  visibleDestination?: string | null;
   onSelect?: (name: string) => void;
 }) {
   const centre: LatLngExpression = [46.6, 2.4];
@@ -42,7 +43,7 @@ export default function StationMap({
     return Array.from(new Map(all.map(station => [station.name, station])).values());
   }, [originStation, stations]);
   const visibleJourney = journeys?.find(journey => journey.key === selectedJourneyKey);
-  const drawnJourneys = visibleJourney ? [visibleJourney] : (journeys ?? []);
+  const drawnJourneys = visibleJourney ? [visibleJourney] : visibleDestination ? (journeys ?? []).filter(journey => journey.points.at(-1)?.name === visibleDestination) : [];
   return (
     <div className="h-full min-h-[360px] w-full">
       <MapContainer className="h-full min-h-[360px] w-full" center={centre} zoom={5} scrollWheelZoom={false} preferCanvas>
@@ -58,7 +59,7 @@ export default function StationMap({
           const next = journey.points[index + 1];
           if (!point || !next) return null;
           return <Polyline key={journey.key + "-leg-" + index} positions={[[point.lat, point.lon], [next.lat, next.lon]]}
-            pathOptions={{ color: journey.changes === 0 ? "#16825d" : "#d97706", weight: journey.key === selectedJourneyKey ? 4 : 2, opacity: journey.key === selectedJourneyKey ? 0.95 : 0.35 }}/>;
+            pathOptions={{ color: journey.changes === 0 ? "#16825d" : "#d97706", weight: journey.key === selectedJourneyKey ? 5 : 2.5, opacity: journey.key === selectedJourneyKey ? 1 : 0.45 }}/>;
         }))}
         {originStation && <>
           <CircleMarker center={[originStation.lat, originStation.lon]} radius={22} interactive={false} pathOptions={{ stroke: false, fillColor: "#e8790c", fillOpacity: 0.08 }}/>
