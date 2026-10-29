@@ -28,11 +28,3 @@ jobs:
           name: map-browser-screenshots
           path: diagnostics/map-*
           if-no-files-found: ignore
-      - name: Post visual test failures to PR
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -f diagnostics/map-browser-results.json ]; then
-            gh pr comment 16 --body-file diagnostics/map-browser-results.json
-          fi
