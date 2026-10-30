@@ -216,11 +216,11 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   }
   return (
     <Drawer.Root open modal={false} dismissible={false} noBodyStyles
-      snapPoints={["52px", 0.5, 0.9]} activeSnapPoint={snap}
+      snapPoints={["88px", 0.5, 0.9]} activeSnapPoint={snap}
       setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
       <Drawer.Content aria-label={label} className="fixed inset-x-0 bottom-0 z-[1100] flex h-[90%] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] focus:outline-none">
-        <div className="flex min-h-12 shrink-0 touch-none select-none items-center justify-center px-4 py-2">
-          <Drawer.Handle className="!m-0 !h-1.5 !w-14 !bg-slate-300" />
+        <div className="flex min-h-[72px] shrink-0 touch-none select-none items-start justify-center px-4 pt-4">
+          <Drawer.Handle className="!m-0 !h-1.5 !w-16 !bg-slate-400" />
         </div>
         <Drawer.Title className="sr-only">{label}</Drawer.Title>
         <Drawer.Description className="sr-only">Fais glisser la poignée pour replier le panneau en laissant la barre accessible, l’afficher à mi-hauteur ou presque en plein écran. La liste se fait défiler indépendamment.</Drawer.Description>
