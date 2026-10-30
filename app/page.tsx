@@ -205,6 +205,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   const [mobile, setMobile] = useState(false);
   const [snap, setSnap] = useState<number | string | null>(0.5);
   const [collapsed, setCollapsed] = useState(false);
+  const peekTouchStart = useRef<number | null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
     const update = () => setMobile(query.matches);
@@ -217,7 +218,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   }
   return (
     <>
-    {collapsed && <div className="fixed inset-x-0 bottom-0 z-[1200] flex justify-center pointer-events-none"><button type="button" onClick={() => { setSnap(0.5); setCollapsed(false); }} aria-label="Déplier le panneau des destinations" className="pointer-events-auto flex h-14 w-32 items-start justify-center rounded-t-3xl border border-b-0 border-slate-200 bg-white pt-4 shadow-lg touch-manipulation"><span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" /></button></div>}
+    {collapsed && <div className="fixed inset-x-0 bottom-0 z-[1200]"><button type="button" onClick={() => { setSnap(0.5); setCollapsed(false); }} onTouchStart={event => { peekTouchStart.current = event.touches[0]?.clientY ?? null; }} onTouchEnd={event => { if (peekTouchStart.current !== null && peekTouchStart.current - (event.changedTouches[0]?.clientY ?? peekTouchStart.current) > 24) { setSnap(0.5); setCollapsed(false); } peekTouchStart.current = null; }} aria-label="Déplier le panneau des destinations en glissant vers le haut" className="flex h-14 w-full touch-none items-start justify-center rounded-t-3xl border border-b-0 border-slate-200 bg-white pt-4 shadow-lg focus-visible:outline-2 focus-visible:outline-emerald-700"><span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" /></button></div>}
     {!collapsed && <Drawer.Root open modal={false} dismissible={false} noBodyStyles
       snapPoints={[0.5, 0.9]} activeSnapPoint={snap}
       setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
