@@ -300,7 +300,7 @@ function makeJourneys(records: TrainRecord[], origin: string, destination: strin
   const routeKeys = new Set<string>();
   // In Explore mode, keep every distinct route discovered up to the global safety cap.
   // The previous per-destination limit of four severely understated destination counts.
-  const routeLimit = MAX_CANDIDATE_ROUTES;
+  const routeLimit = MAX_ROUTES;
   let visitedStates = 0;
   const maxStates = destination ? 15000 : 30000;
 
