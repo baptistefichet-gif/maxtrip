@@ -275,7 +275,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         }}
         onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)}
         onPointerCancel={event => finish(event, true)}
-        className="relative flex h-[76px] shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2" focus-visible:outline-emerald-700"
+        className="relative flex h-[76px] shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2 focus-visible:outline-emerald-700"
         style={{ cursor: dragHeight !== null ? "grabbing" : "grab" }}>
         <span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" />
         {stage === 1 && <span aria-hidden="true" className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-slate-500">Glisser vers le haut ↑</span>}
