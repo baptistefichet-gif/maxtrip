@@ -3,6 +3,7 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://maxtrip.fr"),
   title: "MaxTrip — Les voyages MAX à portée de main",
   description: "Trouve où partir avec TGV MAX : découvre les destinations accessibles depuis ta gare et cherche un aller-retour pour le week-end.",
   robots: { index: true, follow: true },

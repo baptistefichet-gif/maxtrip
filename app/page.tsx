@@ -340,10 +340,17 @@ export default function HomePage() {
     setMapExpanded(true);
   };
   const closeMap = () => {
+    // Closing the map must never leave an invisible destination dialog over the search form.
+    returnToMapRef.current = false;
     setMapExpanded(false);
     setMapSelectedDestination(null);
     setMapSelectedTripKey(null);
-    if (window.history.state?.__maxtripMap && !window.history.state?.__maxtripDestination) window.history.back();
+    setMapReturnsKey(null);
+    setSelectedExploreDestination(null);
+    setMapDetailJourneyKey(null);
+    setExpandedTripKey(null);
+    setExpandedReturnKey(null);
+    if (window.history.state?.__maxtripMap) window.history.back();
   };
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
@@ -352,6 +359,7 @@ export default function HomePage() {
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
+  const [mapDetailJourneyKey, setMapDetailJourneyKey] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const originOptions = useMemo(() => {
@@ -398,6 +406,7 @@ export default function HomePage() {
     const nextState = { ...state, __maxtripDestination: name };
     if (state.__maxtripDestination) window.history.replaceState(nextState, "", window.location.href);
     else window.history.pushState(nextState, "", window.location.href);
+    setMapDetailJourneyKey(null);
     setSelectedExploreDestination(name);
     setSelected(name);
     setSelectedJourneyKey(null);
@@ -409,6 +418,7 @@ export default function HomePage() {
     const returnToMap = returnToMapRef.current;
     returnToMapRef.current = false;
     if (returnToMap) { setMapExpanded(true); }
+    setMapDetailJourneyKey(null);
     if (window.history.state?.__maxtripDestination) {
       window.history.back();
     } else {
@@ -422,7 +432,9 @@ export default function HomePage() {
   useEffect(() => {
     const onHistoryChange = (event: PopStateEvent) => {
       const name = event.state?.__maxtripDestination;
+      // A map-only history entry must not resurrect a hidden journey dialog.
       setSelectedExploreDestination(typeof name === "string" ? name : null);
+      setMapDetailJourneyKey(null);
       setMapExpanded(Boolean(event.state?.__maxtripMap));
       setSelectedJourneyKey(null);
       setExpandedTripKey(null);
@@ -467,7 +479,7 @@ export default function HomePage() {
       document.body.style.overflow = previousOverflow;
       window.cancelAnimationFrame(frame);
       window.removeEventListener("keydown", closeOnKeyDown);
-      modalReturnFocusRef.current?.focus();
+      if (modalReturnFocusRef.current?.isConnected) modalReturnFocusRef.current.focus({ preventScroll: true });
     };
   }, [mode, selectedExploreDestination]);
 
@@ -567,13 +579,13 @@ export default function HomePage() {
     : [], [relevantJourneys, mapSelectedDestination]);
 
   useEffect(() => {
-    if (!mapExpanded) return;
+    if (!mapExpanded || selectedExploreDestination) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { closeMap(); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mapExpanded]);
+  }, [mapExpanded, selectedExploreDestination]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
@@ -629,7 +641,7 @@ export default function HomePage() {
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / RESULT_PAGE_SIZE));
   const pagedRecords = useMemo(() => filtered.slice((currentPage - 1) * RESULT_PAGE_SIZE, currentPage * RESULT_PAGE_SIZE), [filtered, currentPage]);
-  const displayRecords = useMemo(() => pagedRecords, [pagedRecords]);
+  const displayRecords = useMemo(() => mapDetailJourneyKey ? filtered.filter(journey => journey.key === mapDetailJourneyKey) : pagedRecords, [pagedRecords, filtered, mapDetailJourneyKey]);
 
   return (
     <main className="min-h-screen bg-paper pb-12">
@@ -643,7 +655,7 @@ export default function HomePage() {
         </div>
 
         <div id="recherche" className="mt-7 grid scroll-mt-4 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
-          <section className="rounded-3xl bg-white p-4 shadow-soft sm:p-6">
+          <section role="form" aria-label="Recherche de trajets" className="rounded-3xl bg-white p-4 shadow-soft sm:p-6">
             <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
               <button onClick={() => setMode("explore")} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${mode==="explore"?"bg-white text-navy shadow":"text-slate-500"}`}><Compass size={17}/>Explorer</button>
               <button onClick={() => setMode("classic")} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${mode==="classic"?"bg-white text-navy shadow":"text-slate-500"}`}><ArrowLeftRight size={17}/>Trajet classique</button>
@@ -773,17 +785,17 @@ export default function HomePage() {
                   <span className="truncate text-sm font-bold text-slate-900">{item.label}</span><span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">{item.count} trajet(s)</span>
                 </button>)}
                 {mapSelectedDestination && mapDestinationJourneys.map(journey => <div key={journey.key} className={"overflow-hidden rounded-xl border bg-white shadow-sm " + (mapSelectedTripKey === journey.key ? "border-emerald-600 ring-2 ring-emerald-200" : "border-slate-200")}>
-                  <button type="button" onClick={() => setMapSelectedTripKey(current => current === journey.key ? null : journey.key)} aria-expanded={mapSelectedTripKey === journey.key} className="block w-full p-3 text-left transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-600">
-                    <span className="flex items-center justify-between gap-2"><span className="font-bold tabular-nums text-slate-900">{journey.departure} → {journey.arrival}</span><span className="text-xs font-semibold text-emerald-800">{mapSelectedTripKey === journey.key ? "Masquer −" : "Détails +"}</span></span>
-                    <span className="mt-1 block text-xs text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
+                  <button type="button" onClick={() => setMapSelectedTripKey(current => current === journey.key ? null : journey.key)} aria-expanded={mapSelectedTripKey === journey.key} className="block w-full px-3 py-3.5 text-left transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-600">
+                    <span className="flex items-center justify-between gap-2"><span className="text-base font-black tabular-nums text-slate-900">{journey.departure} → {journey.arrival}</span><span className="text-xs font-semibold text-emerald-800">{mapSelectedTripKey === journey.key ? "Masquer −" : "Détails +"}</span></span>
+                    <span className="mt-1 block text-xs font-medium text-slate-600">{journey.changes === 0 ? "Trajet direct" : "Trajet avec " + journey.changes + " correspondance(s)"} · {Math.floor(journey.durationMinutes / 60)} h {String(journey.durationMinutes % 60).padStart(2, "0")}</span>
                   </button>
                   {mapSelectedTripKey === journey.key && <div className="space-y-2 border-t border-emerald-100 bg-emerald-50/50 p-3">
                     <p className="text-xs font-bold text-emerald-900">Détail de l'itinéraire</p>
-                    {journey.legs.map((leg, index) => <div key={journey.key + "-leg-" + index} className="rounded-lg border border-emerald-100 bg-white p-2.5">
+                    {journey.legs.map((leg, index) => <div key={journey.key + "-leg-" + index} className="rounded-lg border border-emerald-100 bg-white p-3">
                       <p className="text-[11px] font-semibold uppercase text-emerald-800">Train {index + 1}{getField(leg, ["train_no", "train_number"]) && " · N° " + getField(leg, ["train_no", "train_number"])}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">{getPlace(leg, "origin")} → {getPlace(leg, "destination")}</p>
-                      <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
-                      {index < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
+                      <p className="mt-1 text-sm font-semibold leading-snug text-slate-900">{getPlace(leg, "origin")} → {getPlace(leg, "destination")}</p>
+                      <p className="mt-1 text-xs font-semibold tabular-nums text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
+                      {index < journey.legs.length - 1 && <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
                     {returnEnabled && <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
                       <button type="button" aria-expanded={mapReturnsKey === journey.key} onClick={() => setMapReturnsKey(current => current === journey.key ? null : journey.key)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-emerald-900">
@@ -799,7 +811,7 @@ export default function HomePage() {
                         </div>)}
                       </div>}
                     </div>}
-                    <button type="button" onClick={() => { returnToMapRef.current = true; openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
+                    <button type="button" onClick={() => { returnToMapRef.current = true; openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setMapDetailJourneyKey(journey.key); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-800">Ouvrir la fiche complète</button>
                   </div>}
                 </div>)}
               </div>
@@ -871,12 +883,15 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
+            <p className="text-sm font-medium text-slate-700">{mapDetailJourneyKey ? 1 : filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
             {allowConnections && suppressedConnectionCount > 0 && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
-          {searchTruncated && <p role="status" className="mt-3 text-xs text-slate-600">Résultats disponibles affichés · recherche non exhaustive. D’autres trajets peuvent exister.</p>}
+          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            <p className="font-semibold">Résultats disponibles affichés · recherche non exhaustive.</p>
+            {truncationReasons.length > 0 && <ul className="mt-1 list-disc space-y-0.5 pl-5">{truncationReasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+          </div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les trajets avec correspondance sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">
@@ -947,12 +962,12 @@ export default function HomePage() {
               </article>;
             })}
           </div>}
-          {pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          {!mapDetailJourneyKey && pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => { setCurrentPage(page => Math.max(1, page - 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === 1} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Précédent</button>
             {Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} type="button" aria-current={currentPage === pageNumber ? "page" : undefined} onClick={() => { setCurrentPage(pageNumber); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"min-w-10 rounded-lg border px-3 py-2 text-sm font-semibold " + (currentPage === pageNumber ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{pageNumber}</button>)}
             <button type="button" onClick={() => { setCurrentPage(page => Math.min(pageCount, page + 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === pageCount} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Suivant</button>
           </nav>}
-          <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>
+          {!mapDetailJourneyKey && <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>}
           </div>
         </section>
 
