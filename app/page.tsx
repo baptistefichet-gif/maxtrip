@@ -335,8 +335,14 @@ export default function HomePage() {
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
   const returnToMapRef = useRef(false);
+  const clearOverlayHistory = () => {
+    const state = { ...(window.history.state ?? {}) } as Record<string, unknown>;
+    delete state.__maxtripMap;
+    delete state.__maxtripDestination;
+    window.history.replaceState(state, "", window.location.href);
+  };
   const openMap = () => {
-    if (!window.history.state?.__maxtripMap) window.history.pushState({ ...(window.history.state ?? {}), __maxtripMap: true }, "", window.location.href);
+    window.history.replaceState({ ...(window.history.state ?? {}), __maxtripMap: true }, "", window.location.href);
     setMapExpanded(true);
   };
   const closeMap = () => {
@@ -350,7 +356,7 @@ export default function HomePage() {
     setMapDetailJourneyKey(null);
     setExpandedTripKey(null);
     setExpandedReturnKey(null);
-    if (window.history.state?.__maxtripMap) window.history.back();
+    clearOverlayHistory();
   };
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
@@ -419,14 +425,11 @@ export default function HomePage() {
     returnToMapRef.current = false;
     if (returnToMap) { setMapExpanded(true); }
     setMapDetailJourneyKey(null);
-    if (window.history.state?.__maxtripDestination) {
-      window.history.back();
-    } else {
-      setSelectedExploreDestination(null);
-      setSelectedJourneyKey(null);
-      setExpandedTripKey(null);
-      setExpandedReturnKey(null);
-    }
+    setSelectedExploreDestination(null);
+    setSelectedJourneyKey(null);
+    setExpandedTripKey(null);
+    setExpandedReturnKey(null);
+    clearOverlayHistory();
   };
 
   useEffect(() => {
