@@ -2,8 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { Drawer } from "vaul";
+import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
@@ -203,7 +202,14 @@ function mapCityName(stationName: string) {
 // The desktop panel keeps its existing layout and interactions.
 function MapItinerarySheet({ label, children }: { label: string; children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
-  const [snap, setSnap] = useState<number | string | null>(0.5);
+  const [height, setHeight] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const pointer = useRef<{ id: number; startY: number; startHeight: number; stage: number; moved: boolean } | null>(null);
+  const sheetHeight = height ?? (typeof window === "undefined" ? 400 : window.innerHeight * 0.5);
+  const limits = () => {
+    const viewport = window.innerHeight;
+    return [56, viewport * 0.5, viewport * 0.9];
+  };
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
     const update = () => setMobile(query.matches);
@@ -211,22 +217,62 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
+  useEffect(() => {
+    if (!mobile) return;
+    const resize = () => setHeight(previous => {
+      const points = limits();
+      if (previous === null) return points[1];
+      return points.reduce((closest, point) => Math.abs(point - previous) < Math.abs(closest - previous) ? point : closest, points[0]);
+    });
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [mobile]);
   if (!mobile) {
     return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
   }
+  const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const points = limits();
+    const current = sheetHeight;
+    const stage = points.reduce((best, point, index) => Math.abs(point - current) < Math.abs(points[best] - current) ? index : best, 0);
+    pointer.current = { id: event.pointerId, startY: event.clientY, startHeight: current, stage, moved: false };
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const move = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const active = pointer.current;
+    if (!active || active.id !== event.pointerId) return;
+    const points = limits();
+    const delta = active.startY - event.clientY;
+    if (Math.abs(delta) > 5) active.moved = true;
+    const lower = points[Math.max(0, active.stage - 1)];
+    const upper = points[Math.min(2, active.stage + 1)];
+    setHeight(Math.max(lower, Math.min(upper, active.startHeight + delta)));
+  };
+  const finish = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const active = pointer.current;
+    if (!active || active.id !== event.pointerId) return;
+    pointer.current = null;
+    const points = limits();
+    const delta = active.startY - event.clientY;
+    const target = Math.abs(delta) < 35 ? active.stage : Math.max(0, Math.min(2, active.stage + (delta > 0 ? 1 : -1)));
+    setHeight(points[target]);
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   return (
-    <Drawer.Root open modal={false} dismissible={false} noBodyStyles
-      snapPoints={["56px", 0.5, 0.9]} activeSnapPoint={snap}
-      setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
-      <Drawer.Content aria-label={label} className="fixed inset-x-0 bottom-0 z-[1100] flex h-[90%] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] focus:outline-none">
-        <div className="flex h-14 shrink-0 touch-none select-none items-start justify-center px-4 pt-4">
-          <Drawer.Handle className="!m-0 !h-1.5 !w-16 !bg-slate-400" />
-        </div>
-        <Drawer.Title className="sr-only">{label}</Drawer.Title>
-        <Drawer.Description className="sr-only">Fais glisser le panneau entre les positions repliée, mi-hauteur et presque plein écran. La liste défile indépendamment.</Drawer.Description>
-        {children}
-      </Drawer.Content>
-    </Drawer.Root>
+    <aside aria-label={label} className="fixed inset-x-0 bottom-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)]"
+      style={{ height: sheetHeight, transition: dragging ? "none" : "height 260ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
+      <div role="group" aria-label="Glisser pour régler la hauteur du panneau"
+        onPointerDown={begin} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}
+        className="flex h-14 shrink-0 touch-none select-none items-start justify-center px-4 pt-4"
+        style={{ cursor: dragging ? "grabbing" : "grab" }}>
+        <span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" />
+      </div>
+      <div className="sr-only" aria-live="polite">{sheetHeight <= 60 ? "Panneau replié" : sheetHeight > (typeof window === "undefined" ? 700 : window.innerHeight * 0.7) ? "Panneau agrandi" : "Panneau à mi-hauteur"}</div>
+      {children}
+    </aside>
   );
 }
 
