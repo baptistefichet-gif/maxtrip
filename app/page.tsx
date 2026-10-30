@@ -387,7 +387,7 @@ export default function HomePage() {
   const closeDestinationDetails = () => {
     const returnToMap = returnToMapRef.current;
     returnToMapRef.current = false;
-    if (returnToMap) { setMapExpanded(true); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
+    if (returnToMap) { setMapExpanded(true); }
     if (window.history.state?.__maxtripDestination) {
       window.history.back();
     } else {
