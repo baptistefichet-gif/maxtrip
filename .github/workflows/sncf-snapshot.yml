@@ -1,0 +1,64 @@
+name: Refresh SNCF MAX snapshot
+
+on:
+  schedule:
+    # SNCF says the dataset is refreshed early each morning.
+    # 06:30 UTC = 07:30 CET / 08:30 CEST, leaving time for the upstream refresh.
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sncf-max-snapshot
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build and validate fresh snapshot
+        run: node scripts/build-sncf-snapshot.mjs
+
+      - name: Preserve current snapshot as previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p previous
+          if gh release view maxtrip-data >/dev/null 2>&1; then
+            gh release download maxtrip-data --pattern "maxtrip-current.json.gz" --dir previous || true
+            if [ -f previous/maxtrip-current.json.gz ]; then
+              mv previous/maxtrip-current.json.gz diagnostics/maxtrip-previous.json.gz
+            fi
+          fi
+
+      - name: Publish validated snapshot without changing main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view maxtrip-data >/dev/null 2>&1; then
+            gh release create maxtrip-data               --target "${{ github.event.repository.default_branch }}"               --title "MaxTrip daily SNCF data"               --notes "Machine-generated rolling TGV MAX snapshot. Assets are replaced only after validation."
+          fi
+
+          assets=(diagnostics/maxtrip-current.json.gz diagnostics/maxtrip-current.metadata.json)
+          if [ -f diagnostics/maxtrip-previous.json.gz ]; then
+            assets+=(diagnostics/maxtrip-previous.json.gz)
+          fi
+          gh release upload maxtrip-data "${assets[@]}" --clobber
+
+      - name: Upload diagnostics only on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sncf-snapshot-failure
+          path: diagnostics/
+          if-no-files-found: ignore
+          retention-days: 3
