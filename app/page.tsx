@@ -340,6 +340,7 @@ export default function HomePage() {
     setMapExpanded(true);
   };
   const closeMap = () => {
+    if (selectedExploreDestination) { closeDestinationDetails(); return; }
     setMapExpanded(false);
     setMapSelectedDestination(null);
     setMapSelectedTripKey(null);
@@ -467,7 +468,7 @@ export default function HomePage() {
       document.body.style.overflow = previousOverflow;
       window.cancelAnimationFrame(frame);
       window.removeEventListener("keydown", closeOnKeyDown);
-      modalReturnFocusRef.current?.focus();
+      if (modalReturnFocusRef.current?.isConnected) modalReturnFocusRef.current.focus({ preventScroll: true });
     };
   }, [mode, selectedExploreDestination]);
 
@@ -567,13 +568,13 @@ export default function HomePage() {
     : [], [relevantJourneys, mapSelectedDestination]);
 
   useEffect(() => {
-    if (!mapExpanded) return;
+    if (!mapExpanded || selectedExploreDestination) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { closeMap(); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mapExpanded]);
+  }, [mapExpanded, selectedExploreDestination]);
 
   function layoverMinutes(previous: TrainRecord, next: TrainRecord) {
     const arrival = minutesOfDay(getTime(previous, "arrival"));
