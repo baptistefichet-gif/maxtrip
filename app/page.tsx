@@ -340,10 +340,17 @@ export default function HomePage() {
     setMapExpanded(true);
   };
   const closeMap = () => {
+    // Closing the map must never leave an invisible destination dialog over the search form.
+    returnToMapRef.current = false;
     setMapExpanded(false);
     setMapSelectedDestination(null);
     setMapSelectedTripKey(null);
-    if (window.history.state?.__maxtripMap && !window.history.state?.__maxtripDestination) window.history.back();
+    setMapReturnsKey(null);
+    setSelectedExploreDestination(null);
+    setMapDetailJourneyKey(null);
+    setExpandedTripKey(null);
+    setExpandedReturnKey(null);
+    if (window.history.state?.__maxtripMap) window.history.back();
   };
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
@@ -425,6 +432,7 @@ export default function HomePage() {
   useEffect(() => {
     const onHistoryChange = (event: PopStateEvent) => {
       const name = event.state?.__maxtripDestination;
+      // A map-only history entry must not resurrect a hidden journey dialog.
       setSelectedExploreDestination(typeof name === "string" ? name : null);
       setMapDetailJourneyKey(null);
       setMapExpanded(Boolean(event.state?.__maxtripMap));
