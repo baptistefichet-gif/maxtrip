@@ -899,7 +899,9 @@ export default function HomePage() {
                   })}</div>
                   <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
+                <div className="mt-3">
                 {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
+                </div>
                 {returnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Retours compatibles</h3>
                   {returnEnabled
