@@ -702,11 +702,6 @@ export default function HomePage() {
               <p className="mt-2 text-xs leading-5 text-slate-500">Les retours sont associés à chaque itinéraire selon les gares, la date et la plage horaire sélectionnées.</p>
             </div>}
 
-            <button onClick={searchTrains} disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-4 font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60">
-              {loading?<LoaderCircle className="animate-spin" size={18}/>:<Search size={18}/>}
-              {loading?"Recherche en cours…":mode==="explore"?"Explorer les destinations":"Rechercher les trains"}
-            </button>
-
             <div className="mt-5 rounded-2xl border border-slate-200 p-3">
               <label className="flex items-start gap-3 text-sm font-semibold text-slate-800">
                 <input type="checkbox" checked={allowConnections} onChange={event => setAllowConnections(event.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-700"/>
@@ -718,6 +713,12 @@ export default function HomePage() {
                 <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
               </div>}
             </div>
+            <button onClick={searchTrains} disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-4 font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60">
+              {loading?<LoaderCircle className="animate-spin" size={18}/>:<Search size={18}/>}
+              {loading?"Recherche en cours…":mode==="explore"?"Explorer les destinations":"Rechercher les trains"}
+            </button>
+
+
           </section>
 
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
