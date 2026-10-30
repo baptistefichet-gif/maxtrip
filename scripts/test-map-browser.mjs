@@ -48,6 +48,13 @@ try{
      if(await trips.getByText("Détail de l'itinéraire").count())throw Error("Trip did not deselect");
      await dialog.getByRole("button",{name:"Réduire la carte"}).click();
      if(await dialog.isVisible())throw Error("Dialog did not close");
+     const searchForm=page.getByRole("form",{name:"Recherche de trajets"});
+     await searchForm.waitFor({state:"visible"});
+     const returnToggle=page.getByText("Je veux un retour TGV MAX").locator("..").locator("input[type=checkbox]");
+     const connectionToggle=page.getByText("Autoriser les trajets avec correspondance").locator("..") .locator("input[type=checkbox]");
+     await returnToggle.check();
+     await connectionToggle.check();
+     if(!(await returnToggle.isChecked())||!(await connectionToggle.isChecked()))throw Error("Search criteria are not interactive after closing map");
      console.log("PASS",name,width);
     }catch(e){failures.push({browser:name,width,error:String(e)});console.error("FAIL",name,width,String(e));}
     finally{await page.close();}
