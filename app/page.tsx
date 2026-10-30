@@ -238,7 +238,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
   }
 
-  const points = [56, Math.max(56, viewport.height * 0.5), Math.max(56, viewport.height * 0.9)];
+  const points = [56, Math.max(56, viewport.height * 0.5), Math.max(56, viewport.height * 0.75)];
   const height = dragHeight ?? points[stage];
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -266,7 +266,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     <aside aria-label={label} className="fixed inset-x-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)]"
       style={{ bottom: viewport.bottomInset, height, transition: dragHeight !== null ? "none" : "height 260ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
       <div role="slider" tabIndex={0} aria-label="Hauteur du panneau des destinations" aria-valuemin={0} aria-valuemax={2} aria-valuenow={stage}
-        aria-valuetext={["Replié", "Mi-hauteur", "Presque plein écran"][stage]}
+        aria-valuetext={["Replié", "Mi-hauteur", "Trois quarts de l’écran"][stage]}
         onKeyDown={event => {
           if (event.key === "ArrowUp") { event.preventDefault(); setStage(value => Math.min(2, value + 1)); }
           if (event.key === "ArrowDown") { event.preventDefault(); setStage(value => Math.max(0, value - 1)); }
@@ -275,7 +275,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         }}
         onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)}
         onPointerCancel={event => finish(event, true)}
-        className="flex h-14 shrink-0 touch-none select-none items-start justify-center px-4 pt-4 focus-visible:outline-2 focus-visible:outline-emerald-700"
+        className="flex h-12 shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2 focus-visible:outline-emerald-700"
         style={{ cursor: dragHeight !== null ? "grabbing" : "grab" }}>
         <span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" />
       </div>
@@ -733,9 +733,9 @@ export default function HomePage() {
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
             <MapItinerarySheet label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"}>
-              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3">
+              <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-2">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">MaxTrip · Carte</p>
                   <h3 className="truncate text-lg font-black text-slate-900">{mapSelectedDestination ?? "Destinations disponibles"}</h3>
                   <p className="text-xs text-slate-500">{mapSelectedDestination ? mapDestinationJourneys.length + " trajet(s)" : destinationSummaries.length + " destination(s)"}</p>
                 </div>
