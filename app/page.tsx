@@ -204,6 +204,8 @@ function mapCityName(stationName: string) {
 function MapItinerarySheet({ label, children }: { label: string; children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [snap, setSnap] = useState<number | string | null>(0.5);
+  const collapsed = snap === "56px";
+  const peekTouchStart = useRef<number | null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
     const update = () => setMobile(query.matches);
@@ -215,6 +217,8 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
   }
   return (
+    <>
+    {collapsed && <div className="fixed inset-x-0 bottom-0 z-[1300]"><button type="button" aria-label="Déplier le panneau" onClick={() => setSnap(0.5)} onTouchStart={event => { peekTouchStart.current = event.touches[0]?.clientY ?? null; }} onTouchEnd={event => { const y = event.changedTouches[0]?.clientY; if (peekTouchStart.current !== null && y !== undefined && peekTouchStart.current - y > 24) setSnap(0.5); peekTouchStart.current = null; }} className="flex h-14 w-full touch-none items-start justify-center rounded-t-3xl border border-slate-200 bg-white pt-4 shadow-lg"><span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" /></button></div>}
     <Drawer.Root open modal={false} dismissible={false} noBodyStyles
       snapPoints={["56px", 0.5, 0.9]} activeSnapPoint={snap}
       setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
@@ -227,6 +231,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         {children}
       </Drawer.Content>
     </Drawer.Root>
+    </>
   );
 }
 
