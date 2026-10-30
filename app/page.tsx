@@ -200,6 +200,27 @@ function mapCityName(stationName: string) {
 
 // Vaul owns gesture arbitration, snapping and scroll handoff on touch devices.
 // The desktop panel keeps its existing layout and interactions.
+function SncfConnectHandoff({ from, to, date, departure, trainNumber, className, children }: { from: string; to: string; date: string; departure: string; trainNumber?: string; className?: string; children: ReactNode }) {
+  const [copied, setCopied] = useState(false);
+  const query = [from, "vers", to, "le", new Date(date + "T12:00:00").toLocaleDateString("fr-FR"), "à", departure, trainNumber ? "train n° " + trainNumber : ""].filter(Boolean).join(" ");
+  const open = async () => {
+    // SNCF Connect does not document a stable URL for prefilled booking searches.
+    // Open the official search and copy the exact criteria for its natural-language search.
+    const tab = window.open("https://www.sncf-connect.com/", "_blank", "noopener,noreferrer");
+    try {
+      await navigator.clipboard.writeText(query);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+    if (!tab) window.location.assign("https://www.sncf-connect.com/");
+  };
+  return <span className="inline-flex flex-wrap items-center gap-2">
+    <button type="button" onClick={open} className={className ?? "font-semibold text-emerald-800 underline"}>{children}</button>
+    <button type="button" onClick={() => { void navigator.clipboard.writeText(query).then(() => setCopied(true)).catch(() => setCopied(false)); }} className="rounded-md border border-emerald-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-800" aria-label="Copier les critères de recherche SNCF">{copied ? "Copié ✓" : "Copier la recherche"}</button>
+  </span>;
+}
+
 function MapItinerarySheet({ label, children }: { label: string; children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [stage, setStage] = useState(1);
@@ -838,7 +859,7 @@ export default function HomePage() {
                           <p className="font-bold">{back.origin} → {back.destination}</p>
                           <p className="mt-1">{back.departure} → {back.arrival} · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>
                           <p className="mt-1 text-slate-600">{back.changes === 0 ? "Direct" : back.changes + " correspondance(s)"}</p>
-                          <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-1 inline-block font-semibold text-emerald-800 underline">Vérifier sur SNCF Connect</a>
+                          <SncfConnectHandoff from={back.origin} to={back.destination} date={returnDate} departure={back.departure}>Vérifier sur SNCF Connect</SncfConnectHandoff>
                         </div>)}
                       </div>}
                     </div>}
@@ -953,7 +974,7 @@ export default function HomePage() {
                   const gap = layoverMinutes(leg, journey.legs[legIndex + 1]);
                   return <span key={getTripKey(leg)} className="rounded-full bg-amber-50 px-3 py-1">Changement à {getPlace(leg, "destination")} · attente {gap === null ? "n.c." : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0")}</span>;
                 })}</div>}
-                {journey.changes === 0 && <p className="mt-3 text-sm font-semibold text-slate-700">Train n° {getField(journey.legs[0], ["train_no", "train_number"]) || "non communiqué"} · <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="text-emerald-800 underline underline-offset-2">Vérifier sur SNCF Connect</a></p>}
+                {journey.changes === 0 && <p className="mt-3 text-sm font-semibold text-slate-700">Train n° {getField(journey.legs[0], ["train_no", "train_number"]) || "non communiqué"} · <SncfConnectHandoff from={journey.origin} to={journey.destination} date={outDate} departure={journey.departure} trainNumber={getField(journey.legs[0], ["train_no", "train_number"])}>Vérifier sur SNCF Connect</SncfConnectHandoff></p>}
                 {journey.changes > 0 && <div className="mt-4 grid gap-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
                   aria-expanded={isExpanded} aria-controls={"details-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
@@ -985,7 +1006,7 @@ export default function HomePage() {
                         <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-bold">{back.origin} <span className="text-slate-400">→</span> {back.destination}</p><span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-900">{back.changes === 0 ? "Trajet direct" : "Trajet avec " + back.changes + " correspondance(s)"}</span></div>
                         <p className="mt-2 text-sm">{back.departure} → {back.arrival} · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>
                         <div className="mt-2 grid gap-2">{back.legs.map((leg, backLegIndex) => <p key={getTripKey(leg) + "-" + backLegIndex} className="text-sm text-slate-600">{formatTime(getTime(leg, "departure"))} {getPlace(leg, "origin")} → {formatTime(getTime(leg, "arrival"))} {getPlace(leg, "destination")}</p>)}</div>
-                        <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 underline">Vérifier ce retour sur SNCF Connect <ExternalLink size={13}/></a>
+                        <div className="mt-2"><SncfConnectHandoff from={back.origin} to={back.destination} date={returnDate} departure={back.departure}>Vérifier ce retour sur SNCF Connect</SncfConnectHandoff></div>
                       </div>)}</div>
                       : <p className="mt-2 text-sm text-slate-600">Aucun retour ne remplit les critères de date, horaire et correspondance pour cette destination.</p>
                     : <p className="mt-2 text-sm text-slate-600">Active le retour obligatoire et choisis sa date et ses horaires pour afficher les retours compatibles.</p>}
