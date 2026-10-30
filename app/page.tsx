@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronUp, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
@@ -311,6 +311,8 @@ export default function HomePage() {
   const [stationsError, setStationsError] = useState("");
   const [outDate, setOutDate] = useState(todayString());
   const [returnEnabled, setReturnEnabled] = useState(false);
+  // Keep the checkbox and its fields responsive while the previous results are re-ranked.
+  const deferredReturnEnabled = useDeferredValue(returnEnabled);
   const [returnDate, setReturnDate] = useState(todayString());
   const [outStart, setOutStart] = useState("08:00");
   const [outEnd, setOutEnd] = useState("");
@@ -361,6 +363,10 @@ export default function HomePage() {
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
   const [mapDetailJourneyKey, setMapDetailJourneyKey] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestIdRef = useRef(0);
+
+  useEffect(() => () => searchAbortRef.current?.abort(), []);
 
   const originOptions = useMemo(() => {
     const query = normalizeText(originSearch);
@@ -486,17 +492,17 @@ export default function HomePage() {
   const relevanceResult = useMemo(() => applyConnectionRelevance(journeys, {
     enabled: allowConnections,
     showAllConnections,
-    returnRequired: returnEnabled,
+    returnRequired: deferredReturnEnabled,
     toleranceMinutes: 15
-  }), [journeys, showAllConnections, allowConnections, returnEnabled]);
+  }), [journeys, showAllConnections, allowConnections, deferredReturnEnabled]);
   const relevantJourneys = relevanceResult.visible;
   const suppressedConnectionCount = useMemo(() => {
     const hidden = applyConnectionRelevance(journeys, {
-      enabled: allowConnections, showAllConnections: false, returnRequired: returnEnabled
+      enabled: allowConnections, showAllConnections: false, returnRequired: deferredReturnEnabled
     }).suppressed;
     return countHiddenAlternatives(hidden, mode === "explore" ? selectedExploreDestination : null,
       station => mapCityName(station) ?? station);
-  }, [journeys, allowConnections, returnEnabled, mode, selectedExploreDestination]);
+  }, [journeys, allowConnections, deferredReturnEnabled, mode, selectedExploreDestination]);
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
@@ -598,10 +604,12 @@ export default function HomePage() {
     if (!origin) { setError("Choisis une gare de départ dans les suggestions."); return; }
     if (mode === "classic" && !destination) { setError("Choisis une gare d'arrivée dans les suggestions."); return; }
     if (returnEnabled && returnDate < outDate) { setError("La date du retour doit être égale ou postérieure à la date de l'aller."); return; }
+    searchAbortRef.current?.abort();
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    const requestId = ++searchRequestIdRef.current;
     setLoading(true);
     setError("");
-    setJourneys([]);
-    setRecords([]);
     setCurrentPage(1);
     setSearchTruncated(false);
     setTruncationReasons([]);
@@ -611,6 +619,8 @@ export default function HomePage() {
     setExpandedTripKey(null);
     setExpandedReturnKey(null);
     try {
+      // Allow the loading state to paint before the network request begins.
+      await new Promise<void>(resolve => window.requestAnimationFrame(() => resolve()));
       const params = new URLSearchParams({
         date: outDate, origine: origin, start: outStart, end: outEnd || "24:00",
         maxChanges, minWait, maxWait, routeType: allowConnections ? "all" : "direct"
@@ -622,19 +632,24 @@ export default function HomePage() {
         params.set("returnStart", returnStart);
         params.set("returnEnd", returnEnd || "24:00");
       }
-      const response = await fetch("/api/itineraries?" + params.toString(), { cache: "no-store" });
+      const response = await fetch("/api/itineraries?" + params.toString(), { cache: "no-store", signal: controller.signal });
       const data = await response.json();
+      if (requestId !== searchRequestIdRef.current) return;
       if (!response.ok) throw new Error(data.error || "La recherche d'itinéraires a échoué.");
-      setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
-      setSelectedExploreDestination(null);
-      setShowAllConnections(false);
-      setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
-      setLastFetch(data.fetched_at || new Date().toISOString());
-      setSearchTruncated(Boolean(data.truncated));
-      setTruncationReasons(Array.isArray(data.truncationReasons) ? data.truncationReasons.filter((reason: unknown): reason is string => typeof reason === "string") : []);
+      // Rendering routes, map points and summaries is non-urgent; keep the UI responsive.
+      startTransition(() => {
+        setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
+        setSelectedExploreDestination(null);
+        setShowAllConnections(false);
+        setSourceTotal(typeof data.sourceCount === "number" ? data.sourceCount : null);
+        setLastFetch(data.fetched_at || new Date().toISOString());
+        setSearchTruncated(Boolean(data.truncated));
+        setTruncationReasons(Array.isArray(data.truncationReasons) ? data.truncationReasons.filter((reason: unknown): reason is string => typeof reason === "string") : []);
+        setLoading(false);
+      });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Une erreur est survenue pendant la recherche.");
-    } finally {
       setLoading(false);
     }
   }
@@ -878,7 +893,7 @@ export default function HomePage() {
             </div>}
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><h2 className="text-xl font-black">Résultats de recherche</h2><p className="mt-1 text-sm text-slate-500">{lastFetch? `Dernière réponse API : ${new Date(lastFetch).toLocaleString("fr-FR")}` : "Lance une recherche pour récupérer les données publiées."}</p></div>
-            {lastFetch && <button onClick={searchTrains} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold"><RefreshCw size={15}/> Actualiser</button>}
+            {lastFetch && <button onClick={searchTrains} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"><RefreshCw size={15}/> Actualiser</button>}
           </div>
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
