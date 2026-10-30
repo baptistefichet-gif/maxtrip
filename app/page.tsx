@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, PointerEvent as ReactPointerEvent } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CalendarDays, ChevronDown, ChevronUp, Clock3, Compass, ExternalLink, GitBranch, MapPinned, Search, TrainFront, SlidersHorizontal, Sparkles, CircleAlert, LoaderCircle, RefreshCw, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { MapStation } from "@/components/StationMap";
 import SiteHeader from "@/components/SiteHeader";
 import Link from "next/link";
@@ -203,6 +203,7 @@ function mapCityName(stationName: string) {
 function MapItinerarySheet({ label, children }: { label: string; children: ReactNode }) {
   const [mobile, setMobile] = useState(false);
   const [stage, setStage] = useState(1);
+  const [hasExpanded, setHasExpanded] = useState(false);
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [viewport, setViewport] = useState({ height: 800, bottomInset: 0 });
   const pointer = useRef<{ id: number; startY: number; startHeight: number; stage: number } | null>(null);
@@ -240,6 +241,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
 
   const points = [56, Math.max(56, viewport.height * 0.5), Math.max(56, viewport.height * 0.75)];
   const height = dragHeight ?? points[stage];
+  useEffect(() => { if (stage === 2) setHasExpanded(true); }, [stage]);
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     pointer.current = { id: event.pointerId, startY: event.clientY, startHeight: points[stage], stage };
@@ -278,7 +280,12 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         className="flex h-12 shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2 focus-visible:outline-emerald-700"
         style={{ cursor: dragHeight !== null ? "grabbing" : "grab" }}>
         <span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" />
+        {stage === 1 && !hasExpanded && <span aria-hidden="true" className="pointer-events-none absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-slate-500">Glisser vers le haut ↑</span>}
       </div>
+      <button type="button" aria-label={stage === 0 ? "Ouvrir le panneau à mi-hauteur" : "Replier complètement le panneau"} onClick={() => setStage(stage === 0 ? 1 : 0)}
+        className="absolute right-2 top-1 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-700">
+        {stage === 0 ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+      </button>
       {children}
     </aside>
   );
