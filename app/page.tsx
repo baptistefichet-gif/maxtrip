@@ -265,7 +265,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   return (
     <aside aria-label={label} className="fixed inset-x-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)]"
       style={{ bottom: viewport.bottomInset, height, transition: dragHeight !== null ? "none" : "height 260ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-      <div role="slider" tabIndex={0} aria-label="Hauteur du panneau des destinations" aria-valuemin={0} aria-valuemax={2} aria-valuenow={stage}
+      <div role="slider" tabIndex={0} aria-label="Hauteur du panneau des destinations" aria-orientation="vertical" aria-valuemin={0} aria-valuemax={2} aria-valuenow={stage}
         aria-valuetext={["Replié", "Mi-hauteur", "Trois quarts de l’écran"][stage]}
         onKeyDown={event => {
           if (event.key === "ArrowUp") { event.preventDefault(); setStage(value => Math.min(2, value + 1)); }
@@ -655,7 +655,7 @@ export default function HomePage() {
         </div>
 
         <div id="recherche" className="mt-7 grid scroll-mt-4 gap-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
-          <section className="rounded-3xl bg-white p-4 shadow-soft sm:p-6">
+          <section role="form" aria-label="Recherche de trajets" className="rounded-3xl bg-white p-4 shadow-soft sm:p-6">
             <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1">
               <button onClick={() => setMode("explore")} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${mode==="explore"?"bg-white text-navy shadow":"text-slate-500"}`}><Compass size={17}/>Explorer</button>
               <button onClick={() => setMode("classic")} className={`flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold ${mode==="classic"?"bg-white text-navy shadow":"text-slate-500"}`}><ArrowLeftRight size={17}/>Trajet classique</button>
@@ -843,6 +843,8 @@ export default function HomePage() {
 
         <section
           id="search-results"
+          aria-live="polite"
+          aria-busy={loading}
           aria-label={mode === "explore" && selectedExploreDestination ? "Itinéraires pour " + selectedExploreDestination : "Résultats de recherche"}
           role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}
           aria-modal={mode === "explore" && selectedExploreDestination ? true : undefined}
@@ -886,7 +888,10 @@ export default function HomePage() {
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
-          {searchTruncated && <p role="status" className="mt-3 text-xs text-slate-600">Résultats disponibles affichés · recherche non exhaustive. D’autres trajets peuvent exister.</p>}
+          {searchTruncated && <div role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
+            <p className="font-semibold">Résultats disponibles affichés · recherche non exhaustive.</p>
+            {truncationReasons.length > 0 && <ul className="mt-1 list-disc space-y-0.5 pl-5">{truncationReasons.map(reason => <li key={reason}>{reason}</li>)}</ul>}
+          </div>}
           {lastFetch && <p className="mt-2 text-xs text-slate-500">Les trajets directs et les trajets avec correspondance sont construits à partir des trains MAX signalés disponibles. Les durées de changement de gare inconnues ne sont pas inventées.</p>}
 
           {lastFetch && <div className="mt-4 grid gap-3">

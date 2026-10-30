@@ -30,6 +30,7 @@ async function fetchGroupedValues(field: "origine" | "destination") {
 
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
       next: { revalidate: 21600 }
     });
     if (!response.ok) {
@@ -55,6 +56,7 @@ async function fetchFacetFallback(field: "origine" | "destination") {
 
   const response = await fetch(url.toString(), {
     headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(8000),
     next: { revalidate: 21600 }
   });
   if (!response.ok) throw new Error("Facet query for " + field + " returned HTTP " + response.status);
@@ -93,9 +95,9 @@ export async function GET() {
       headers: { "Cache-Control": "public, s-maxage=21600, stale-while-revalidate=43200" }
     });
   } catch (error) {
+    console.error("stations_upstream_failure", error);
     return NextResponse.json({
-      error: "Impossible de récupérer la liste complète des gares SNCF.",
-      details: error instanceof Error ? error.message : "Source SNCF indisponible."
+      error: "Impossible de récupérer la liste complète des gares SNCF."
     }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }
 }
