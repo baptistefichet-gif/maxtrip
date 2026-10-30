@@ -265,7 +265,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   return (
     <aside aria-label={label} className="fixed inset-x-0 z-[1100] flex flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)]"
       style={{ bottom: viewport.bottomInset, height, transition: dragHeight !== null ? "none" : "height 260ms cubic-bezier(0.2, 0.8, 0.2, 1)" }}>
-      <div role="slider" tabIndex={0} aria-label="Hauteur du panneau des destinations" aria-valuemin={0} aria-valuemax={2} aria-valuenow={stage}
+      <div role="slider" tabIndex={0} aria-label="Hauteur du panneau des destinations" aria-orientation="vertical" aria-valuemin={0} aria-valuemax={2} aria-valuenow={stage}
         aria-valuetext={["Replié", "Mi-hauteur", "Trois quarts de l’écran"][stage]}
         onKeyDown={event => {
           if (event.key === "ArrowUp") { event.preventDefault(); setStage(value => Math.min(2, value + 1)); }
@@ -831,6 +831,8 @@ export default function HomePage() {
 
         <section
           id="search-results"
+          aria-live="polite"
+          aria-busy={loading}
           aria-label={mode === "explore" && selectedExploreDestination ? "Itinéraires pour " + selectedExploreDestination : "Résultats de recherche"}
           role={mode === "explore" && selectedExploreDestination ? "dialog" : undefined}
           aria-modal={mode === "explore" && selectedExploreDestination ? true : undefined}

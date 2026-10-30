@@ -40,14 +40,13 @@ export async function GET(request: NextRequest) {
   try {
     const response = await fetch(url.toString(), {
       headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8000),
       next: { revalidate: 1800 }
     });
     if (!response.ok) {
-      const upstreamMessage = (await response.text()).slice(0, 400);
+      console.error("trains_upstream_failure", response.status);
       return NextResponse.json({
-        error: "La source SNCF a répondu avec HTTP " + response.status + ".",
-        upstreamStatus: response.status,
-        upstreamMessage
+        error: "La source SNCF est temporairement indisponible."
       }, { status: 502, headers: { "Cache-Control": "no-store" } });
     }
 

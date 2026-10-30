@@ -512,8 +512,9 @@ export async function GET(request: NextRequest) {
       source: "SNCF Open Data"
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    console.error("itineraries_upstream_failure", error);
     return NextResponse.json({
-      error: error instanceof Error ? error.message : "Impossible de construire les itinéraires SNCF.",
+      error: "Impossible de construire les itinéraires SNCF pour le moment.",
       source: "SNCF Open Data"
     }, { status: 502, headers: { "Cache-Control": "no-store" } });
   }

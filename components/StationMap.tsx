@@ -65,7 +65,7 @@ export default function StationMap({
         {originStation && <>
           <CircleMarker center={[originStation.lat, originStation.lon]} radius={22} interactive={false} pathOptions={{ stroke: false, fillColor: "#e8790c", fillOpacity: 0.08 }}/>
           <CircleMarker center={[originStation.lat, originStation.lon]} radius={13} interactive={false} pathOptions={{ color: "#fff", weight: 3, fillColor: "#e8790c", fillOpacity: 1 }}>
-            <Tooltip direction="top" permanent>{originStation.name} · départ</Tooltip>
+            <Tooltip direction="top" sticky>{originStation.name} · départ</Tooltip>
           </CircleMarker>
         </>}
         {visibleJourney && visibleJourney.points.slice(1, -1).map((station, index) => station ? (
@@ -73,7 +73,7 @@ export default function StationMap({
             <CircleMarker center={[station.lat, station.lon]} radius={20} interactive={false} pathOptions={{ stroke: false, fillColor: "#d97706", fillOpacity: 0.08 }}/>
             <CircleMarker center={[station.lat, station.lon]} radius={12} interactive={false}
               pathOptions={{ color: "#fff", weight: 3, fillColor: "#d97706", fillOpacity: 1 }}>
-              <Tooltip direction="top" permanent>Correspondance {index + 1} · {station.name}</Tooltip>
+              <Tooltip direction="top" sticky>Correspondance {index + 1} · {station.name}</Tooltip>
             </CircleMarker>
           </Fragment>
         ) : null)}

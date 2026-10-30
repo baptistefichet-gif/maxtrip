@@ -25,6 +25,8 @@ jobs:
         run: npm ci
       - name: Run unit tests
         run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Smoke-test the live SNCF API and target Paris/date queries
         run: node scripts/smoke-sncf-api.mjs
       - name: Build production app
