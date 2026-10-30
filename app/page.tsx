@@ -347,6 +347,7 @@ export default function HomePage() {
   };
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
+  const [mapReturnsKey, setMapReturnsKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
@@ -757,7 +758,7 @@ export default function HomePage() {
             <button type="button" onClick={closeMap} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Réduire la carte" title="Réduire la carte"><Minimize2 size={20}/></button>
           </header>
           <div className="relative min-h-0 flex-1">
-            <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
+            <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); setMapReturnsKey(null); }}/>
             <MapItinerarySheet label={mapSelectedDestination ? "Trajets vers " + mapSelectedDestination : "Destinations disponibles"}>
               <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-2">
                 <div className="min-w-0">
@@ -765,7 +766,7 @@ export default function HomePage() {
                   <h3 className="truncate text-lg font-black text-slate-900">{mapSelectedDestination ?? "Destinations disponibles"}</h3>
                   <p className="text-xs text-slate-500">{mapSelectedDestination ? mapDestinationJourneys.length + " trajet(s)" : destinationSummaries.length + " destination(s)"}</p>
                 </div>
-                {mapSelectedDestination && <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Retour</button>}
+                {mapSelectedDestination && <button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapReturnsKey(null); }} className="shrink-0 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">Retour</button>}
               </div>
               <div data-vaul-no-drag className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain touch-pan-y bg-slate-50/80 p-3" style={{ WebkitOverflowScrolling: "touch" }}>
                 {!mapSelectedDestination && destinationSummaries.map(item => <button type="button" key={item.label} onClick={() => { setMapSelectedDestination(item.label); setMapSelectedTripKey(null); }} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50">
@@ -784,7 +785,21 @@ export default function HomePage() {
                       <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
                       {index < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
-                    <button type="button" onClick={() => { returnToMapRef.current = true; setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
+                    {returnEnabled && <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                      <button type="button" aria-expanded={mapReturnsKey === journey.key} onClick={() => setMapReturnsKey(current => current === journey.key ? null : journey.key)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-emerald-900">
+                        <span>{mapReturnsKey === journey.key ? "Masquer" : "Voir"} les {(journey.returns ?? []).length} retours compatibles</span><span aria-hidden="true">{mapReturnsKey === journey.key ? "−" : "+"}</span>
+                      </button>
+                      {mapReturnsKey === journey.key && <div className="mt-2 space-y-2 border-t border-emerald-100 pt-2">
+                        {(journey.returns ?? []).length === 0 && <p className="text-xs text-slate-600">Aucun retour compatible.</p>}
+                        {(journey.returns ?? []).map(back => <div key={back.key} className="rounded-lg bg-emerald-50 p-2 text-xs text-slate-800">
+                          <p className="font-bold">{back.origin} → {back.destination}</p>
+                          <p className="mt-1">{back.departure} → {back.arrival} · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>
+                          <p className="mt-1 text-slate-600">{back.changes === 0 ? "Direct" : back.changes + " correspondance(s)"}</p>
+                          <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-1 inline-block font-semibold text-emerald-800 underline">Vérifier sur SNCF Connect</a>
+                        </div>)}
+                      </div>}
+                    </div>}
+                    <button type="button" onClick={() => { returnToMapRef.current = true; openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
                   </div>}
                 </div>)}
               </div>
@@ -823,7 +838,7 @@ export default function HomePage() {
             mode === "explore" && !selectedExploreDestination
               ? "hidden"
               : mode === "explore" && selectedExploreDestination
-                ? "fixed inset-0 z-[2000] overflow-y-auto overscroll-contain bg-slate-950/50 p-0 sm:p-6"
+                ? "fixed inset-0 z-[2300] overflow-y-auto overscroll-contain bg-slate-950/50 p-0 sm:p-6"
                 : "mt-6 scroll-mt-4"
           }
           onClick={event => {
