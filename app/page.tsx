@@ -284,7 +284,12 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-emerald-700">
         {stage === 0 ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
       </button>
-      {children}
+      <div onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)}
+        onPointerCancel={event => finish(event, true)}
+        className="shrink-0 touch-none select-none" style={{ cursor: dragHeight !== null ? "grabbing" : "grab" }}>
+        {Array.isArray(children) ? children[0] : children}
+      </div>
+      {Array.isArray(children) ? children.slice(1) : null}
     </aside>
   );
 }
