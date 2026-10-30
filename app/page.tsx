@@ -879,11 +879,10 @@ export default function HomePage() {
                   const gap = layoverMinutes(leg, journey.legs[legIndex + 1]);
                   return <span key={getTripKey(leg)} className="rounded-full bg-amber-50 px-3 py-1">Changement à {getPlace(leg, "destination")} · attente {gap === null ? "n.c." : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0")}</span>;
                 })}</div>}
-                <div className="mt-4 grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
+                <div className="mt-4 grid gap-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
                   aria-expanded={isExpanded} aria-controls={"details-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
-                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
                 </div>
                 {isExpanded && <div id={"details-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
@@ -900,6 +899,7 @@ export default function HomePage() {
                   })}</div>
                   <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
+                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
                 {returnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Retours compatibles</h3>
                   {returnEnabled
