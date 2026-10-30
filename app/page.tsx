@@ -319,6 +319,8 @@ export default function HomePage() {
   const [returnStart, setReturnStart] = useState("08:00");
   const [returnEnd, setReturnEnd] = useState("");
   const [allowConnections, setAllowConnections] = useState(false);
+  // Opening the controls is immediate; re-ranking and map redraw stay interruptible.
+  const deferredAllowConnections = useDeferredValue(allowConnections);
   const [showAllConnections, setShowAllConnections] = useState(false);
   const [maxChanges, setMaxChanges] = useState("1");
   const [minWait, setMinWait] = useState("20");
@@ -490,19 +492,19 @@ export default function HomePage() {
   }, [mode, selectedExploreDestination]);
 
   const relevanceResult = useMemo(() => applyConnectionRelevance(journeys, {
-    enabled: allowConnections,
+    enabled: deferredAllowConnections,
     showAllConnections,
     returnRequired: deferredReturnEnabled,
     toleranceMinutes: 15
-  }), [journeys, showAllConnections, allowConnections, deferredReturnEnabled]);
+  }), [journeys, showAllConnections, deferredAllowConnections, deferredReturnEnabled]);
   const relevantJourneys = relevanceResult.visible;
   const suppressedConnectionCount = useMemo(() => {
     const hidden = applyConnectionRelevance(journeys, {
-      enabled: allowConnections, showAllConnections: false, returnRequired: deferredReturnEnabled
+      enabled: deferredAllowConnections, showAllConnections: false, returnRequired: deferredReturnEnabled
     }).suppressed;
     return countHiddenAlternatives(hidden, mode === "explore" ? selectedExploreDestination : null,
       station => mapCityName(station) ?? station);
-  }, [journeys, allowConnections, deferredReturnEnabled, mode, selectedExploreDestination]);
+  }, [journeys, deferredAllowConnections, deferredReturnEnabled, mode, selectedExploreDestination]);
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
