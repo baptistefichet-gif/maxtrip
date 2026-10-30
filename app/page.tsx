@@ -235,13 +235,14 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     };
   }, [mobile]);
 
+  useEffect(() => { if (stage === 2) setHasExpanded(true); }, [stage]);
+
   if (!mobile) {
     return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
   }
 
   const points = [56, Math.max(56, viewport.height * 0.5), Math.max(56, viewport.height * 0.75)];
   const height = dragHeight ?? points[stage];
-  useEffect(() => { if (stage === 2) setHasExpanded(true); }, [stage]);
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     pointer.current = { id: event.pointerId, startY: event.clientY, startHeight: points[stage], stage };
