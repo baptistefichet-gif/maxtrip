@@ -216,26 +216,14 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   }
   return (
     <Drawer.Root open modal={false} dismissible={false} noBodyStyles
-      snapPoints={[0.25, 0.5, 0.9]} activeSnapPoint={snap}
+      snapPoints={[0.5, 0.9]} activeSnapPoint={snap}
       setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
       <Drawer.Content aria-label={label} className="fixed inset-x-0 bottom-0 z-[1100] flex h-[90%] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] focus:outline-none">
-        <div className="shrink-0 touch-none select-none px-4 pb-1 pt-2">
-          <Drawer.Handle className="!mb-1 !mt-1 !h-1.5 !w-12 !bg-slate-300" />
-          <div data-vaul-no-drag className="mx-auto flex w-fit items-center gap-1.5" aria-label="Hauteur du panneau">
-            {([0.25, 0.5, 0.9] as const).map((point, index) => (
-              <button key={point} type="button"
-                aria-label={index === 0 ? "Réduire le panneau" : index === 1 ? "Afficher le panneau à mi-hauteur" : "Agrandir le panneau"}
-                aria-pressed={snap === point}
-                onClick={() => setSnap(point)}
-                className={"h-7 min-w-7 rounded-full px-2 text-[10px] font-bold transition focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-700 " + (snap === point ? "bg-emerald-700 text-white" : "bg-slate-100 text-slate-600")}>
-                {index === 0 ? "25" : index === 1 ? "50" : "90"}
-                <span className="sr-only"> pour cent</span>
-              </button>
-            ))}
-          </div>
+        <div className="flex min-h-12 shrink-0 touch-none select-none items-center justify-center px-4 py-2">
+          <Drawer.Handle className="!m-0 !h-1.5 !w-14 !bg-slate-300" />
         </div>
         <Drawer.Title className="sr-only">{label}</Drawer.Title>
-        <Drawer.Description className="sr-only">Fais glisser la poignée pour choisir une hauteur de 25, 50 ou 90 pour cent. La liste se fait défiler indépendamment.</Drawer.Description>
+        <Drawer.Description className="sr-only">Fais glisser la poignée pour afficher le panneau à mi-hauteur ou presque en plein écran. La liste se fait défiler indépendamment.</Drawer.Description>
         {children}
       </Drawer.Content>
     </Drawer.Root>
