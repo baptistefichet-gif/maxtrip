@@ -312,7 +312,7 @@ export default function HomePage() {
   const [outDate, setOutDate] = useState(todayString());
   const [returnEnabled, setReturnEnabled] = useState(false);
   // Keep the checkbox and its fields responsive while the previous results are re-ranked.
-  const deferredReturnEnabled = useDeferredValue(returnEnabled);
+  const [appliedReturnEnabled, setAppliedReturnEnabled] = useState(false);
   const [returnDate, setReturnDate] = useState(todayString());
   const [outStart, setOutStart] = useState("08:00");
   const [outEnd, setOutEnd] = useState("");
@@ -320,7 +320,8 @@ export default function HomePage() {
   const [returnEnd, setReturnEnd] = useState("");
   const [allowConnections, setAllowConnections] = useState(false);
   // Opening the controls is immediate; re-ranking and map redraw stay interruptible.
-  const deferredAllowConnections = useDeferredValue(allowConnections);
+  const [appliedAllowConnections, setAppliedAllowConnections] = useState(false);
+  const [appliedCriteria, setAppliedCriteria] = useState<string | null>(null);
   const [showAllConnections, setShowAllConnections] = useState(false);
   const [maxChanges, setMaxChanges] = useState("1");
   const [minWait, setMinWait] = useState("20");
@@ -495,19 +496,19 @@ export default function HomePage() {
   }, [mode, selectedExploreDestination]);
 
   const relevanceResult = useMemo(() => applyConnectionRelevance(journeys, {
-    enabled: deferredAllowConnections,
+    enabled: appliedAllowConnections,
     showAllConnections,
-    returnRequired: deferredReturnEnabled,
+    returnRequired: appliedReturnEnabled,
     toleranceMinutes: 15
-  }), [journeys, showAllConnections, deferredAllowConnections, deferredReturnEnabled]);
+  }), [journeys, showAllConnections, appliedAllowConnections, appliedReturnEnabled]);
   const relevantJourneys = relevanceResult.visible;
   const suppressedConnectionCount = useMemo(() => {
     const hidden = applyConnectionRelevance(journeys, {
-      enabled: deferredAllowConnections, showAllConnections: false, returnRequired: deferredReturnEnabled
+      enabled: appliedAllowConnections, showAllConnections: false, returnRequired: appliedReturnEnabled
     }).suppressed;
     return countHiddenAlternatives(hidden, mode === "explore" ? selectedExploreDestination : null,
       station => mapCityName(station) ?? station);
-  }, [journeys, deferredAllowConnections, deferredReturnEnabled, mode, selectedExploreDestination]);
+  }, [journeys, appliedAllowConnections, appliedReturnEnabled, mode, selectedExploreDestination]);
 
   const filtered = useMemo(() => {
     if (mode !== "explore" || !selectedExploreDestination) return relevantJourneys;
@@ -605,6 +606,9 @@ export default function HomePage() {
     return (departure < arrival ? departure + 1440 : departure) - arrival;
   }
 
+  const criteriaSignature = JSON.stringify({ mode, origin, destination: mode === "classic" ? destination : null, outDate, outStart, outEnd, returnEnabled, returnDate: returnEnabled ? returnDate : null, returnStart: returnEnabled ? returnStart : null, returnEnd: returnEnabled ? returnEnd : null, allowConnections, maxChanges: allowConnections ? maxChanges : null, minWait: allowConnections ? minWait : null, maxWait: allowConnections ? maxWait : null });
+  const criteriaChanged = appliedCriteria !== null && criteriaSignature !== appliedCriteria;
+
   async function searchTrains() {
     if (!origin) { setError("Choisis une gare de départ dans les suggestions."); return; }
     if (mode === "classic" && !destination) { setError("Choisis une gare d'arrivée dans les suggestions."); return; }
@@ -613,6 +617,9 @@ export default function HomePage() {
     const controller = new AbortController();
     searchAbortRef.current = controller;
     const requestId = ++searchRequestIdRef.current;
+    const submittedCriteria = criteriaSignature;
+    const submittedConnections = allowConnections;
+    const submittedReturn = returnEnabled;
     setLoading(true);
     setError("");
     setCurrentPage(1);
@@ -643,6 +650,9 @@ export default function HomePage() {
       if (!response.ok) throw new Error(data.error || "La recherche d'itinéraires a échoué.");
       // Rendering routes, map points and summaries is non-urgent; keep the UI responsive.
       startTransition(() => {
+        setAppliedAllowConnections(submittedConnections);
+        setAppliedReturnEnabled(submittedReturn);
+        setAppliedCriteria(submittedCriteria);
         setJourneys(Array.isArray(data.routes) ? data.routes as Journey[] : []);
         setSelectedExploreDestination(null);
         setShowAllConnections(false);
@@ -760,6 +770,7 @@ export default function HomePage() {
                 <label className="text-sm font-semibold text-slate-700">Attente maximum (min)<input type="number" min="20" max="360" step="5" value={maxWait} onChange={e=>setMaxWait(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3"/></label>
               </div>}
             </div>
+            {criteriaChanged && <p role="status" className="mt-4 text-sm font-semibold text-amber-800">Critères modifiés — relance la recherche pour actualiser les résultats.</p>}
             <button onClick={searchTrains} disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-4 font-bold text-white transition hover:bg-emerald-800 disabled:opacity-60">
               {loading?<LoaderCircle className="animate-spin" size={18}/>:<Search size={18}/>}
               {loading?"Recherche en cours…":mode==="explore"?"Explorer les destinations":"Rechercher les trains"}
@@ -817,7 +828,7 @@ export default function HomePage() {
                       <p className="mt-1 text-xs font-semibold tabular-nums text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
                       {index < journey.legs.length - 1 && <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs font-semibold text-amber-900">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
-                    {returnEnabled && <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
+                    {appliedReturnEnabled && <div className="rounded-lg border border-emerald-200 bg-white p-2.5">
                       <button type="button" aria-expanded={mapReturnsKey === journey.key} onClick={() => setMapReturnsKey(current => current === journey.key ? null : journey.key)} className="flex w-full items-center justify-between gap-2 text-left text-xs font-bold text-emerald-900">
                         <span>{mapReturnsKey === journey.key ? "Masquer" : "Voir"} les {(journey.returns ?? []).length} retours compatibles</span><span aria-hidden="true">{mapReturnsKey === journey.key ? "−" : "+"}</span>
                       </button>
@@ -889,8 +900,8 @@ export default function HomePage() {
                 </button>
                 <h2 className="text-xl font-black sm:text-2xl">{origin} <span className="text-slate-400">→</span> {selectedExploreDestination}</h2>
                 <p className="mt-1 text-sm text-slate-600">{new Date(outDate + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {filtered.length} itinéraire(s) distinct(s)</p>
-                {allowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure, même s’il part plus tard.</p>}
-                {returnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
+                {appliedAllowConnections && <p className="mt-2 text-xs text-slate-500">Certains trajets avec correspondance sont masqués lorsqu’un trajet direct comparable arrive plus tôt ou à la même heure, même s’il part plus tard.</p>}
+                {appliedReturnEnabled && <p className="mt-1 text-xs font-medium text-emerald-800">Retour TGV MAX demandé · {new Date(returnDate + "T12:00:00").toLocaleDateString("fr-FR")}</p>}
               </div>
               <button type="button" aria-label="Fermer le détail de la destination" onClick={closeDestinationDetails} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50">
                 <X size={20}/>
@@ -904,7 +915,7 @@ export default function HomePage() {
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-medium text-slate-700">{mapDetailJourneyKey ? 1 : filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
-            {allowConnections && suppressedConnectionCount > 0 && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+            {appliedAllowConnections && suppressedConnectionCount > 0 && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
           </div>}
@@ -964,9 +975,9 @@ export default function HomePage() {
                   <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-emerald-800 underline underline-offset-4">Vérifier l'aller sur SNCF Connect <ExternalLink size={14}/></a>
                 </div>}
                 <div className="mt-3">
-                {returnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
+                {appliedReturnEnabled && <button type="button" onClick={() => setExpandedReturnKey(areReturnsExpanded ? null : tripKey)} aria-expanded={areReturnsExpanded} aria-controls={"returns-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm font-bold text-emerald-900 transition hover:bg-emerald-100"><span>{areReturnsExpanded ? "Masquer " : "Voir "}{matchingReturns.length === 1 ? "le retour compatible" : "les " + matchingReturns.length + " retours compatibles"}</span><span aria-hidden="true">{areReturnsExpanded ? "−" : "+"}</span></button>}
                 </div>
-                {returnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                {appliedReturnEnabled && areReturnsExpanded && <div id={"returns-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Retours compatibles</h3>
                   {returnEnabled
                     ? matchingReturns.length
