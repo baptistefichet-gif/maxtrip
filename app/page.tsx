@@ -206,6 +206,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
   const [snap, setSnap] = useState<number | string | null>(0.5);
   const [collapsed, setCollapsed] = useState(false);
   const peekTouchStart = useRef<number | null>(null);
+  const headerTouchStart = useRef<number | null>(null);
   useEffect(() => {
     const query = window.matchMedia("(max-width: 639px)");
     const update = () => setMobile(query.matches);
@@ -223,7 +224,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
       snapPoints={[0.5, 0.9]} activeSnapPoint={snap}
       setActiveSnapPoint={setSnap} snapToSequentialPoint scrollLockTimeout={100}>
       <Drawer.Content aria-label={label} className="fixed inset-x-0 bottom-0 z-[1100] flex h-[90%] flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] focus:outline-none">
-        <div className="relative flex min-h-[72px] shrink-0 touch-none select-none items-start justify-center px-4 pt-4">
+        <div onTouchStart={event => { headerTouchStart.current = event.touches[0]?.clientY ?? null; }} onTouchEnd={event => { if (headerTouchStart.current !== null && (event.changedTouches[0]?.clientY ?? headerTouchStart.current) - headerTouchStart.current > 70 && snap === 0.5) setCollapsed(true); headerTouchStart.current = null; }} onTouchCancel={() => { headerTouchStart.current = null; }} className="relative flex min-h-[72px] shrink-0 touch-none select-none items-start justify-center px-4 pt-4">
           <Drawer.Handle className="!m-0 !h-1.5 !w-16 !bg-slate-400" />
           <button type="button" data-vaul-no-drag aria-label="Replier le panneau" onClick={() => setCollapsed(true)} className="absolute right-3 top-1 flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 focus-visible:outline-2 focus-visible:outline-emerald-700"><span aria-hidden="true">⌄</span></button>
         </div>
