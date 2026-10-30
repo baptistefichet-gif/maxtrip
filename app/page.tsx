@@ -352,6 +352,7 @@ export default function HomePage() {
   const [expandedTripKey, setExpandedTripKey] = useState<string | null>(null);
   const [expandedReturnKey, setExpandedReturnKey] = useState<string | null>(null);
   const [selectedJourneyKey, setSelectedJourneyKey] = useState<string | null>(null);
+  const [mapDetailJourneyKey, setMapDetailJourneyKey] = useState<string | null>(null);
   const modalReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const originOptions = useMemo(() => {
@@ -398,6 +399,7 @@ export default function HomePage() {
     const nextState = { ...state, __maxtripDestination: name };
     if (state.__maxtripDestination) window.history.replaceState(nextState, "", window.location.href);
     else window.history.pushState(nextState, "", window.location.href);
+    setMapDetailJourneyKey(null);
     setSelectedExploreDestination(name);
     setSelected(name);
     setSelectedJourneyKey(null);
@@ -409,6 +411,7 @@ export default function HomePage() {
     const returnToMap = returnToMapRef.current;
     returnToMapRef.current = false;
     if (returnToMap) { setMapExpanded(true); }
+    setMapDetailJourneyKey(null);
     if (window.history.state?.__maxtripDestination) {
       window.history.back();
     } else {
@@ -423,6 +426,7 @@ export default function HomePage() {
     const onHistoryChange = (event: PopStateEvent) => {
       const name = event.state?.__maxtripDestination;
       setSelectedExploreDestination(typeof name === "string" ? name : null);
+      setMapDetailJourneyKey(null);
       setMapExpanded(Boolean(event.state?.__maxtripMap));
       setSelectedJourneyKey(null);
       setExpandedTripKey(null);
@@ -629,7 +633,7 @@ export default function HomePage() {
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / RESULT_PAGE_SIZE));
   const pagedRecords = useMemo(() => filtered.slice((currentPage - 1) * RESULT_PAGE_SIZE, currentPage * RESULT_PAGE_SIZE), [filtered, currentPage]);
-  const displayRecords = useMemo(() => pagedRecords, [pagedRecords]);
+  const displayRecords = useMemo(() => mapDetailJourneyKey ? filtered.filter(journey => journey.key === mapDetailJourneyKey) : pagedRecords, [pagedRecords, filtered, mapDetailJourneyKey]);
 
   return (
     <main className="min-h-screen bg-paper pb-12">
@@ -799,7 +803,7 @@ export default function HomePage() {
                         </div>)}
                       </div>}
                     </div>}
-                    <button type="button" onClick={() => { returnToMapRef.current = true; openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-800">Ouvrir la fiche complète</button>
+                    <button type="button" onClick={() => { returnToMapRef.current = true; openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setMapDetailJourneyKey(journey.key); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-800">Ouvrir la fiche complète</button>
                   </div>}
                 </div>)}
               </div>
@@ -869,7 +873,7 @@ export default function HomePage() {
 
           {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><CircleAlert size={18} className="mt-0.5 shrink-0"/>{error}</div>}
           {lastFetch && <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm font-medium text-slate-700">{filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
+            <p className="text-sm font-medium text-slate-700">{mapDetailJourneyKey ? 1 : filtered.length} itinéraire(s) trouvé(s) · affichage de {RESULT_PAGE_SIZE} résultats par page.{selectedExploreDestination ? " Destination : " + selectedExploreDestination + "." : ""}</p>
             {allowConnections && suppressedConnectionCount > 0 && <button type="button" onClick={() => { setShowAllConnections(value => !value); setCurrentPage(1); }} className="rounded-lg border border-emerald-500 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900 hover:border-emerald-700 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
               {(showAllConnections ? "Masquer les alternatives moins pertinentes" : "Afficher aussi les autres trajets avec correspondance") + " (" + suppressedConnectionCount + ")"}
             </button>}
@@ -945,12 +949,12 @@ export default function HomePage() {
               </article>;
             })}
           </div>}
-          {pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
+          {!mapDetailJourneyKey && pageCount > 1 && <nav aria-label="Pagination des itinéraires" className="mt-5 flex flex-wrap items-center justify-center gap-2">
             <button type="button" onClick={() => { setCurrentPage(page => Math.max(1, page - 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === 1} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Précédent</button>
             {Array.from({ length: pageCount }, (_, index) => index + 1).map(pageNumber => <button key={pageNumber} type="button" aria-current={currentPage === pageNumber ? "page" : undefined} onClick={() => { setCurrentPage(pageNumber); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className={"min-w-10 rounded-lg border px-3 py-2 text-sm font-semibold " + (currentPage === pageNumber ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>{pageNumber}</button>)}
             <button type="button" onClick={() => { setCurrentPage(page => Math.min(pageCount, page + 1)); document.getElementById("search-results")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} disabled={currentPage === pageCount} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40">Suivant</button>
           </nav>}
-          <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>
+          {!mapDetailJourneyKey && <p className="mt-3 text-center text-xs text-slate-500">Page {currentPage} sur {pageCount} · {filtered.length} itinéraire(s)</p>}
           </div>
         </section>
 
