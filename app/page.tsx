@@ -238,7 +238,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
     return <aside aria-label={label} className="absolute bottom-5 left-5 top-5 z-[1100] flex w-[340px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_45px_rgba(15,23,42,0.22)] lg:w-[380px]">{children}</aside>;
   }
 
-  const points = [76, Math.max(76, viewport.height * 0.5), Math.max(76, viewport.height * 0.75)];
+  const points = [56, Math.max(76, viewport.height * 0.5), Math.max(76, viewport.height * 0.75)];
   const height = dragHeight ?? points[stage];
   const begin = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -275,7 +275,7 @@ function MapItinerarySheet({ label, children }: { label: string; children: React
         }}
         onPointerDown={begin} onPointerMove={move} onPointerUp={event => finish(event)}
         onPointerCancel={event => finish(event, true)}
-        className="relative flex h-[76px] shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2 focus-visible:outline-emerald-700"
+        className={"relative flex shrink-0 touch-none select-none items-start justify-center px-4 pt-3 focus-visible:outline-2" + (stage === 0 ? " h-14" : " h-[76px]")} focus-visible:outline-emerald-700"
         style={{ cursor: dragHeight !== null ? "grabbing" : "grab" }}>
         <span aria-hidden="true" className="h-1.5 w-16 rounded-full bg-slate-400" />
         {stage === 1 && <span aria-hidden="true" className="pointer-events-none absolute top-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-slate-500">Glisser vers le haut ↑</span>}
