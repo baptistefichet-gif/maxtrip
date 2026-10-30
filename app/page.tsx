@@ -335,6 +335,16 @@ export default function HomePage() {
   const [selectedExploreDestination, setSelectedExploreDestination] = useState<string | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
   const returnToMapRef = useRef(false);
+  const openMap = () => {
+    if (!window.history.state?.__maxtripMap) window.history.pushState({ ...(window.history.state ?? {}), __maxtripMap: true }, "", window.location.href);
+    setMapExpanded(true);
+  };
+  const closeMap = () => {
+    setMapExpanded(false);
+    setMapSelectedDestination(null);
+    setMapSelectedTripKey(null);
+    if (window.history.state?.__maxtripMap && !window.history.state?.__maxtripDestination) window.history.back();
+  };
   const [mapSelectedDestination, setMapSelectedDestination] = useState<string | null>(null);
   const [mapSelectedTripKey, setMapSelectedTripKey] = useState<string | null>(null);
   const [returnRecords, setReturnRecords] = useState<TrainRecord[]>([]);
@@ -412,6 +422,7 @@ export default function HomePage() {
     const onHistoryChange = (event: PopStateEvent) => {
       const name = event.state?.__maxtripDestination;
       setSelectedExploreDestination(typeof name === "string" ? name : null);
+      setMapExpanded(Boolean(event.state?.__maxtripMap));
       setSelectedJourneyKey(null);
       setExpandedTripKey(null);
       setExpandedReturnKey(null);
@@ -557,7 +568,7 @@ export default function HomePage() {
   useEffect(() => {
     if (!mapExpanded) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }
+      if (event.key === "Escape") { closeMap(); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -727,10 +738,10 @@ export default function HomePage() {
           <section className="overflow-hidden rounded-3xl bg-white shadow-soft">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4 sm:px-5">
               <div><h2 className="flex items-center gap-2 font-bold"><MapPinned size={18}/>Carte des destinations</h2><p className="mt-1 text-xs text-slate-500">Les étapes et correspondances du trajet sélectionné sont tracées sur la carte</p></div>
-              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); setMapExpanded(true); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
+              <div className="flex items-center gap-2"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{destinations.length} ville(s)</span><button type="button" onClick={() => { setMapSelectedDestination(null); setMapSelectedTripKey(null); openMap(); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100" aria-label="Agrandir la carte" title="Agrandir la carte"><Maximize2 size={20}/></button></div>
             </div>
             <div className="h-[360px] sm:h-[460px]">
-              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);setMapExpanded(true)}else{setSelected(name);setDestination(name)}}}/>
+              <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={selectedJourneyKey} selected={selected} onSelect={name=>{if(mode==="explore"){setMapSelectedDestination(name);openMap()}else{setSelected(name);setDestination(name)}}}/>
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs text-slate-500">
               <span className="flex items-center gap-2"><span className="h-2 w-4 rounded-full bg-emerald-700"/> Trajet direct</span>
@@ -743,7 +754,7 @@ export default function HomePage() {
         {mapExpanded && <section role="dialog" aria-modal="true" aria-label="Carte agrandie des destinations" className="fixed inset-0 z-[2100] flex flex-col overflow-hidden bg-slate-50">
           <header className="relative z-[1200] flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
             <div><h2 className="text-lg font-black text-slate-900">Carte des destinations</h2><p className="text-xs text-slate-600">Sélectionne une ville pour afficher ses trajets.</p></div>
-            <button type="button" onClick={() => { setMapExpanded(false); setMapSelectedDestination(null); setMapSelectedTripKey(null); }} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Réduire la carte" title="Réduire la carte"><Minimize2 size={20}/></button>
+            <button type="button" onClick={closeMap} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Réduire la carte" title="Réduire la carte"><Minimize2 size={20}/></button>
           </header>
           <div className="relative min-h-0 flex-1">
             <StationMap stations={destinations} originStation={originMapStation} journeys={mapJourneys} selectedJourneyKey={mapSelectedTripKey} selected={mapSelectedDestination} visibleDestination={mapSelectedDestination} onSelect={name => { setMapSelectedDestination(name); setMapSelectedTripKey(null); }}/>
@@ -773,7 +784,7 @@ export default function HomePage() {
                       <p className="mt-1 text-xs text-slate-600">{getTime(leg, "departure")} → {getTime(leg, "arrival")}</p>
                       {index < journey.legs.length - 1 && <p className="mt-2 text-xs font-medium text-amber-800">Correspondance à {getPlace(leg, "destination")} · {(() => { const gap = layoverMinutes(leg, journey.legs[index + 1]); return gap === null ? "attente non calculée" : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0") + " d'attente"; })()}</p>}
                     </div>)}
-                    <button type="button" onClick={() => { returnToMapRef.current = true; setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.key); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
+                    <button type="button" onClick={() => { returnToMapRef.current = true; setMapExpanded(false); openDestinationDetails(mapCityName(journey.destination) ?? journey.destination); setSelectedJourneyKey(journey.key); setExpandedTripKey(journey.changes > 0 ? journey.key : null); }} className="w-full rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800">{returnEnabled ? "Voir le trajet et les retours compatibles" : "Voir le détail du trajet"}</button>
                   </div>}
                 </div>)}
               </div>
@@ -879,12 +890,13 @@ export default function HomePage() {
                   const gap = layoverMinutes(leg, journey.legs[legIndex + 1]);
                   return <span key={getTripKey(leg)} className="rounded-full bg-amber-50 px-3 py-1">Changement à {getPlace(leg, "destination")} · attente {gap === null ? "n.c." : Math.floor(gap / 60) + " h " + String(gap % 60).padStart(2, "0")}</span>;
                 })}</div>}
-                <div className="mt-4 grid gap-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
+                {journey.changes === 0 && <p className="mt-3 text-sm font-semibold text-slate-700">Train n° {getField(journey.legs[0], ["train_no", "train_number"]) || "non communiqué"} · <a href="https://www.sncf-connect.com/" target="_blank" rel="noreferrer" className="text-emerald-800 underline underline-offset-2">Vérifier sur SNCF Connect</a></p>}
+                {journey.changes > 0 && <div className="mt-4 grid gap-2"><button type="button" onClick={() => { setExpandedTripKey(isExpanded ? null : tripKey); setSelectedJourneyKey(isExpanded ? null : tripKey); setSelected(finalCity); }}
                   aria-expanded={isExpanded} aria-controls={"details-" + index} className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-bold text-slate-800 transition hover:border-emerald-300 hover:bg-emerald-50">
                   <span>{isExpanded ? "Masquer le détail de l’itinéraire" : "Voir le détail de l’itinéraire"}</span><span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
                 </button>
-                </div>
-                {isExpanded && <div id={"details-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                </div>}
+                {journey.changes > 0 && isExpanded && <div id={"details-" + index} className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
                   <h3 className="font-bold text-slate-900">Détail de l'itinéraire</h3>
                   <div className="mt-3 grid gap-3">{journey.legs.map((leg, legIndex) => {
                     const legFrom = getPlace(leg, "origin");
