@@ -713,7 +713,7 @@ export default function HomePage() {
                 {stationsError && <p className="mt-1 text-xs font-normal text-red-700">{stationsError}</p>}
               </div>
               {mode==="classic" && <div className="relative">
-                <div className="flex items-center justify-between gap-2">
+                <div className="relative">
                   <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
                   <button type="button" aria-label="Inverser les gares de départ et d'arrivée" title="Inverser départ et arrivée"
                     onClick={() => {
@@ -726,8 +726,8 @@ export default function HomePage() {
                       setOriginActiveIndex(0);
                       setDestinationActiveIndex(0);
                     }}
-                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
-                    <ArrowLeftRight size={20} aria-hidden="true"/>
+                    className="absolute right-0 top-0 inline-flex h-7 w-9 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+                    <ArrowLeftRight size={17} aria-hidden="true"/>
                   </button>
                 </div>
                 <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" aria-activedescendant={destinationOpen && destinationSearch && destinationOptions.length ? "destination-option-" + Math.min(destinationActiveIndex, destinationOptions.length - 1) : undefined} autoComplete="off"
