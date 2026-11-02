@@ -713,7 +713,23 @@ export default function HomePage() {
                 {stationsError && <p className="mt-1 text-xs font-normal text-red-700">{stationsError}</p>}
               </div>
               {mode==="classic" && <div className="relative">
-                <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="destination-station" className="block text-sm font-semibold text-slate-700">Gare d'arrivée</label>
+                  <button type="button" aria-label="Inverser les gares de départ et d'arrivée" title="Inverser départ et arrivée"
+                    onClick={() => {
+                      setOrigin(destination);
+                      setDestination(origin);
+                      setOriginSearch(destinationSearch);
+                      setDestinationSearch(originSearch);
+                      setOriginOpen(false);
+                      setDestinationOpen(false);
+                      setOriginActiveIndex(0);
+                      setDestinationActiveIndex(0);
+                    }}
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-800 transition hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700">
+                    <ArrowLeftRight size={20} aria-hidden="true"/>
+                  </button>
+                </div>
                 <input id="destination-station" type="text" role="combobox" aria-autocomplete="list" aria-expanded={destinationOpen && destinationOptions.length > 0} aria-controls="destination-station-suggestions" aria-activedescendant={destinationOpen && destinationSearch && destinationOptions.length ? "destination-option-" + Math.min(destinationActiveIndex, destinationOptions.length - 1) : undefined} autoComplete="off"
                   value={destinationSearch || (destination ? destination : "")}
                   onFocus={() => { setDestinationOpen(true); if (!destinationSearch && destination) setDestinationSearch(destination); }}
